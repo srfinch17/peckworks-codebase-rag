@@ -6,6 +6,7 @@
   "scripts": {
     "ingest": "tsx src/cli/index.ts ingest",
     "ask": "tsx src/cli/index.ts ask",
+    "web": "tsx src/web/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
