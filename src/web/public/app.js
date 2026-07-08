@@ -1,10 +1,12 @@
 "use strict";
 
-// Thin client for the local RAG web UI. It only talks to this app's own server; the server holds
-// the Anthropic key. Everything here is rendering + fetch plumbing.
+// Thin client for the local codebase-RAG UI. It only talks to this app's own server (which holds
+// the Anthropic key). Everything here is fetch plumbing plus rendering the answer and the retrieval
+// meter.
 
 const $ = (id) => document.getElementById(id);
 const repoSel = $("repo");
+const conn = $("conn");
 const form = $("ask-form");
 const questionEl = $("question");
 const askBtn = $("ask-btn");
@@ -21,6 +23,29 @@ const minscoreEl = $("minscore");
 const minscoreVal = $("minscore-val");
 
 let lastQuestion = "";
+
+// Small DOM helpers so rendered content is built from nodes, never innerHTML with server strings.
+const div = (cls) => {
+  const el = document.createElement("div");
+  el.className = cls;
+  return el;
+};
+const span = (cls, text) => {
+  const el = document.createElement("span");
+  el.className = cls;
+  if (text != null) el.textContent = text;
+  return el;
+};
+const pct = (x) => Math.max(0, Math.min(100, x * 100)) + "%";
+
+// Parse a constant (non-user) SVG string into a node. Only used with literals defined here.
+const CITE_ICON =
+  '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="7,7 3,10 7,13"/><polyline points="13,7 17,10 13,13"/></svg>';
+function svgEl(str) {
+  const t = document.createElement("template");
+  t.innerHTML = str.trim();
+  return t.content.firstChild;
+}
 
 async function fetchJson(url, opts) {
   const res = await fetch(url, opts);
@@ -50,6 +75,8 @@ function syncKnobReadouts() {
 
 async function loadRepos() {
   const { repos, lastRepo } = await fetchJson("/repos");
+  conn.classList.add("ok");
+  conn.title = "connected to the local server";
   repoSel.replaceChildren();
   for (const r of repos) {
     const opt = document.createElement("option");
@@ -104,7 +131,7 @@ function renderAnswer(result) {
   answerPanel.hidden = false;
   answerText.textContent = result.answer;
   if (result.refused) {
-    confidenceEl.textContent = "refused";
+    confidenceEl.textContent = "no answer";
     confidenceEl.className = "badge refused";
   } else {
     confidenceEl.textContent = result.confidence;
@@ -116,7 +143,7 @@ function renderAnswer(result) {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "cite";
-    chip.textContent = `${c.path}:${c.startLine}`;
+    chip.append(svgEl(CITE_ICON), document.createTextNode(`${c.path}:${c.startLine}`));
 
     const body = document.createElement("pre");
     body.className = "cite-body";
@@ -126,8 +153,7 @@ function renderAnswer(result) {
       body.hidden = !body.hidden;
     });
 
-    const wrap = document.createElement("div");
-    wrap.className = "cite-wrap";
+    const wrap = div("cite-wrap");
     wrap.append(chip, body);
     citationsEl.appendChild(wrap);
   }
@@ -139,8 +165,7 @@ function renderRetrieval(result) {
   retrievalEl.replaceChildren();
 
   if (result.retrieved.length === 0) {
-    const p = document.createElement("p");
-    p.className = "hint";
+    const p = div("empty");
     p.textContent = "Nothing was retrieved for this question.";
     retrievalEl.appendChild(p);
     return;
@@ -148,44 +173,38 @@ function renderRetrieval(result) {
 
   for (const r of result.retrieved) {
     const above = r.score >= minScore;
-    const row = document.createElement("div");
-    row.className = "hit " + (above ? "above" : "below");
+    const row = div("hit " + (above ? "above" : "below"));
 
-    const score = document.createElement("span");
-    score.className = "hit-score";
-    score.textContent = r.score.toFixed(3);
+    const meta = div("hit-meta");
+    const path = span("hit-path", `${r.path}:${r.startLine}`);
+    path.title = `${r.path}:${r.startLine}`;
+    meta.append(span("hit-score", r.score.toFixed(3)), path, span("hit-tag", above ? "above" : "below"));
 
-    const path = document.createElement("span");
-    path.className = "hit-path";
-    path.textContent = `${r.path}:${r.startLine}`;
-    path.title = path.textContent;
+    const track = div("hit-track");
+    const fill = div("hit-fill");
+    fill.style.width = pct(r.score);
+    const thresh = div("hit-thresh");
+    thresh.style.left = pct(minScore);
+    track.append(fill, thresh);
 
-    const bar = document.createElement("span");
-    bar.className = "hit-bar";
-    const fill = document.createElement("span");
-    fill.className = "hit-fill";
-    fill.style.width = Math.max(0, Math.min(100, r.score * 100)) + "%";
-    bar.appendChild(fill);
-
-    const flag = document.createElement("span");
-    flag.className = "hit-flag";
-    flag.textContent = above ? "above" : "below";
-
-    row.append(score, path, bar, flag);
+    row.append(meta, track);
     retrievalEl.appendChild(row);
   }
 
-  const note = document.createElement("p");
-  note.className = "hint";
-  note.textContent = `minScore line ${minScore.toFixed(2)}  (top score ${result.retrieved[0].score.toFixed(3)})`;
-  retrievalEl.appendChild(note);
+  // Axis with the minScore floor marked where it actually sits on the 0..1 scale.
+  const scale = div("meter-scale");
+  const mark = div("scale-mark");
+  mark.style.left = pct(minScore);
+  mark.append(div("scale-tick"), span("scale-lab", `min ${minScore.toFixed(2)}`));
+  scale.append(span("scale-end", "0.0"), mark, span("scale-end right", "1.0"));
+  retrievalEl.appendChild(scale);
 }
 
 async function ask() {
   const question = questionEl.value.trim();
   if (!question) return;
   lastQuestion = question;
-  setStatus("Thinking...", "loading");
+  setStatus("Retrieving the most relevant code", "loading");
   askBtn.disabled = true;
   try {
     const result = await fetchJson("/ask", {
@@ -197,7 +216,7 @@ async function ask() {
     renderAnswer(result);
     renderRetrieval(result);
   } catch (e) {
-    setStatus("Error: " + e.message, "error");
+    setStatus("Something went wrong: " + e.message, "error");
   } finally {
     askBtn.disabled = false;
   }
@@ -209,8 +228,16 @@ form.addEventListener("submit", (e) => {
 });
 
 repoSel.addEventListener("change", () => {
-  loadSettings().catch((e) => setStatus("Failed to load settings: " + e.message, "error"));
+  loadSettings().catch((e) => setStatus("Could not load settings: " + e.message, "error"));
 });
+
+for (const chip of document.querySelectorAll(".chip")) {
+  chip.addEventListener("click", () => {
+    questionEl.value = chip.dataset.q || "";
+    questionEl.focus();
+    ask();
+  });
+}
 
 for (const el of [topkEl, minscoreEl]) {
   el.addEventListener("input", () => {
@@ -223,4 +250,8 @@ for (const el of [topkEl, minscoreEl]) {
   });
 }
 
-loadRepos().catch((e) => setStatus("Failed to load repos: " + e.message, "error"));
+loadRepos().catch((e) => {
+  conn.classList.add("bad");
+  conn.title = "cannot reach the local server";
+  setStatus("Could not reach the server. Is `npm run web` running? " + e.message, "error");
+});
