@@ -12,14 +12,16 @@ import type { ChunkType, RetrievedChunk } from "./types.js";
 export async function retrieve(
   repo: string,
   question: string,
-  typeFilter?: ChunkType
+  opts: { topK?: number; typeFilter?: ChunkType } = {}
 ): Promise<RetrievedChunk[]> {
   const embedder = getEmbedder();
   const [queryVector] = await embedder.embed([question]);
-  const hits = await search(collectionFor(repo), queryVector!, config.topK, typeFilter);
+  const limit = opts.topK ?? config.topK;
+  const hits = await search(collectionFor(repo), queryVector!, limit, opts.typeFilter);
   logEvent("retrieve", {
     repo,
     question,
+    topK: limit,
     topScore: hits[0]?.score ?? null,
     hits: hits.map((h) => ({ path: h.path, startLine: h.startLine, score: h.score })),
   });
