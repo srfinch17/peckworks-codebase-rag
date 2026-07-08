@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+logs/*.jsonl
+# transformers.js downloads model weights here on first run
+.cache/
+# Qdrant local storage
+.qdrant_storage/

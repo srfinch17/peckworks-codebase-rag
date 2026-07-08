@@ -1,0 +1,9 @@
+# Local Qdrant (the vector database = STEP 3 "store"). Run: npm run qdrant:up
+# Dashboard at http://localhost:6333/dashboard
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./.qdrant_storage:/qdrant/storage
