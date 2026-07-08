@@ -699,8 +699,15 @@ main {
 }
 
 .control-desc {
-  color: var(--faint);
-  font-size: 0.72rem;
+  color: var(--dim);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.control-desc strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .controls-note {

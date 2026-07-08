@@ -115,12 +115,20 @@
           <label class="control">
             <span class="control-head">topK <b id="topk-val">8</b></span>
             <input id="topk" type="range" min="1" max="20" step="1" value="8" />
-            <span class="control-desc">how many code chunks to retrieve</span>
+            <span class="control-desc">
+              <strong>Retrieval breadth.</strong> How many of the most similar code chunks get pulled
+              from the index and passed to the model as context. More chunks give broader context but
+              add noise; fewer stay focused and fast.
+            </span>
           </label>
           <label class="control">
             <span class="control-head">minScore <b id="minscore-val">0.25</b></span>
             <input id="minscore" type="range" min="0" max="1" step="0.01" value="0.25" />
-            <span class="control-desc">similarity floor, below which it refuses instead of guessing</span>
+            <span class="control-desc">
+              <strong>Refusal threshold (0 to 1).</strong> The similarity score the best-matching chunk
+              must beat. If nothing clears the line, the tool refuses instead of guessing. Raise it to be
+              stricter, lower it to be more forgiving.
+            </span>
           </label>
           <p class="controls-note">Saved per repo, on this machine. Releasing a slider re-runs your last question.</p>
         </div>
