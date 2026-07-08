@@ -1,4 +1,4 @@
-# PITFALLS — peckworks-codebase-rag
+# PITFALLS - peckworks-codebase-rag
 
 Consult before touching ingest, chunking, or the Qdrant store. Append every real gotcha
 (dated), the same discipline that made clipmeta easy to work in.
@@ -10,13 +10,13 @@ Consult before touching ingest, chunking, or the Qdrant store. Append every real
   `packages`, `TestResults`, `.qdrant_storage`, `.cache`, `logs`) plus *simple* top-level
   `.gitignore` rules (plain names, trailing-slash directory entries, and `*.ext` suffix
   globs). We do **not** implement negation (`!`), `**`, path anchoring, or nested
-  `.gitignore` files. This is a deliberate YAGNI cut — binaries are excluded anyway because
+  `.gitignore` files. This is a deliberate YAGNI cut: binaries are excluded anyway because
   ingest only includes known code/doc extensions. Revisit only if a real repo gets
   mis-indexed.
 
 - **Line-window chunking can split a long function mid-body.** This is the Phase-1 baseline
   *on purpose*; Phase 2 (tree-sitter symbol-aware chunking) fixes it and we measure the
-  hit-rate gain against this baseline. Don't "fix" it early — the baseline is the point.
+  hit-rate gain against this baseline. Don't "fix" it early: the baseline is the point.
 
 - **`minScore` is tuned for prose (0.25).** Inherited from the document lab. It may
   mis-refuse (or under-refuse) on code until re-tuned against the clipmeta golden set in
@@ -25,7 +25,7 @@ Consult before touching ingest, chunking, or the Qdrant store. Append every real
 
 - **Embeddings come from a text model (MiniLM), used on code.** MiniLM was trained on
   natural language, not source. It still works, but a code-tuned or hosted embedder may
-  retrieve better — the `Embedder` interface (`src/embed.ts`) is the swap point. Measure
+  retrieve better: the `Embedder` interface (`src/embed.ts`) is the swap point. Measure
   before swapping.
 
 - **Re-ingesting upserts; it does not delete stale chunks.** If files are removed or
@@ -36,6 +36,6 @@ Consult before touching ingest, chunking, or the Qdrant store. Append every real
 
 ## Gotchas
 <!-- Append dated entries as they happen during implementation, e.g.:
-- 2026-06-21: <what bit us> — <root cause> — <fix>.
+- 2026-06-21: <what bit us> - <root cause> - <fix>.
 -->
-_(none yet — implementation starts next session)_
+_(none yet, implementation starts next session)_
