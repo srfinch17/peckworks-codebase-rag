@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>peckworks codebase RAG</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>peckworks <span class="accent">codebase RAG</span></h1>
+      <label class="repo-picker">
+        <span>repo</span>
+        <select id="repo"></select>
+      </label>
+    </header>
+
+    <main>
+      <form id="ask-form" class="ask-row" autocomplete="off">
+        <input id="question" type="text" placeholder="Ask about this codebase..." />
+        <button id="ask-btn" type="submit">Ask</button>
+      </form>
+
+      <p id="status" class="status" hidden></p>
+
+      <section id="answer-panel" class="panel" hidden>
+        <div class="panel-head">
+          <h2>Answer</h2>
+          <span id="confidence" class="badge"></span>
+        </div>
+        <p id="answer-text" class="answer-text"></p>
+        <div id="citations" class="citations"></div>
+      </section>
+
+      <section id="retrieval-panel" class="panel" hidden>
+        <div class="panel-head">
+          <h2>Retrieval</h2>
+          <span class="hint">why it answered, or refused</span>
+        </div>
+        <div id="retrieval" class="retrieval"></div>
+      </section>
+
+      <details class="advanced">
+        <summary>advanced &middot; tuning</summary>
+        <div class="controls">
+          <label class="control">
+            <span>topK <b id="topk-val">8</b></span>
+            <input id="topk" type="range" min="1" max="20" step="1" value="8" />
+          </label>
+          <label class="control">
+            <span>minScore <b id="minscore-val">0.25</b></span>
+            <input id="minscore" type="range" min="0" max="1" step="0.01" value="0.25" />
+          </label>
+          <p class="controls-note">
+            Saved per repo, on this machine. Releasing a slider re-runs your last question.
+          </p>
+        </div>
+      </details>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
