@@ -8,3 +8,7 @@ logs/*.jsonl
 .qdrant_storage/
 # Web UI per-repo settings (local state)
 data/
+# Local-only working docs, kept off the published repo
+CLAUDE.md
+docs/superpowers/
+docs/learning/

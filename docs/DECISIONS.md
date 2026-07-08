@@ -1,7 +1,7 @@
 # DECISIONS - peckworks-codebase-rag
 
-A running log of forks and why we took them. Deliberately captured as source material for
-the future "RAG-ify a repo" skill (P4). Every entry records a design question and its answer.
+A running log of the design forks and why we took them. Each entry records a design question
+and the answer we chose.
 
 ## 2026-06-20 - initial design
 
@@ -37,7 +37,7 @@ the future "RAG-ify a repo" skill (P4). Every entry records a design question an
 
 - **Corpus = source code + markdown docs, classified by extension.**
   *Why:* the goal is "help anyone understand / debug / set up." The *why* questions are
-  answered in prose (CLAUDE.md, PITFALLS, specs); the *show me the code* questions in source.
+  answered in prose (README, PITFALLS, the decisions log); the *show me the code* questions in source.
   Extension allow-listing also excludes binaries for free.
 
 - **First target: clipmeta.**
