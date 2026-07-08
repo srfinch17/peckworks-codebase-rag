@@ -38,6 +38,18 @@ function extractJson(text: string): string {
   return fenced ? fenced[1]!.trim() : trimmed;
 }
 
+/**
+ * Parse and validate the model's reply into a RagAnswer. Returns null (never throws) if the
+ * reply is malformed JSON or does not match the schema, so the caller can refuse gracefully.
+ */
+export function tryParseAnswer(raw: string): RagAnswer | null {
+  try {
+    return RagAnswerSchema.parse(JSON.parse(extractJson(raw)));
+  } catch {
+    return null;
+  }
+}
+
 export async function answerQuestion(repo: string, question: string): Promise<AnswerResult> {
   const retrieved = await retrieve(repo, question);
   const topScore = retrieved[0]?.score ?? 0;
@@ -68,11 +80,26 @@ export async function answerQuestion(repo: string, question: string): Promise<An
     ],
   });
 
-  // The reply is untrusted external data: extract the text, parse, and Zod-validate it.
+  // The reply is untrusted external data: extract the text, then parse+validate defensively.
   const raw = message.content
     .map((block) => (block.type === "text" ? block.text : ""))
     .join("");
-  const answer = RagAnswerSchema.parse(JSON.parse(extractJson(raw)));
+  const answer = tryParseAnswer(raw);
+
+  // Zod detected a malformed reply. Refuse gracefully instead of crashing.
+  if (!answer) {
+    logEvent("answer", { repo, question, refused: true, reason: "unparseable-reply", topScore });
+    return {
+      answer: {
+        answer:
+          "I found relevant code but couldn't produce a valid structured answer. Try rephrasing the question.",
+        citations: [],
+        confidence: "low",
+      },
+      retrieved,
+      refused: true,
+    };
+  }
 
   logEvent("answer", {
     repo,
