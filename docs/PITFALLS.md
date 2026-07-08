@@ -35,7 +35,16 @@ Consult before touching ingest, chunking, or the Qdrant store. Append every real
   before re-upsert) is a future improvement, not P1 scope.
 
 ## Gotchas
-<!-- Append dated entries as they happen during implementation, e.g.:
-- 2026-06-21: <what bit us> - <root cause> - <fix>.
--->
-_(none yet, implementation starts next session)_
+
+- **2026-07-08: `fetch failed` from the Qdrant client on Node 26 was a two-major-version undici mismatch.**
+  - *Symptom:* `npm run ingest` failed instantly with `Failed to obtain server version ... fetch failed`, even though Qdrant was confirmed up (HTTP 200 from PowerShell, and a plain Node `fetch()` to the same URL, both worked).
+  - *Root cause:* `@qdrant/js-client-rest` (latest, 1.18.0) depends on `undici@6` and builds an undici-6 `Agent` that it passes as the request `dispatcher` to Node's global `fetch`. Node 26 ships built-in `undici@8`, which rejects the v6 dispatcher with `UND_ERR_INVALID_ARG: invalid onError method`. Plain `fetch()` works because it uses the built-in dispatcher; only the client's custom Agent triggers it.
+  - *Diagnosis tip:* the top-level error is a misleading `fetch failed`. The real cause is only in `err.cause.code` / `err.cause.message` - always inspect those before assuming a connectivity problem.
+  - *Fix:* pin undici up to Node's major via an npm `overrides` block in package.json: `"overrides": { "undici": "^8.2.0" }`, then `npm install`. `checkCompatibility: false` does NOT help - every request uses the bad dispatcher, not just the version check.
+  - *Red herring:* `localhost` vs `127.0.0.1` (IPv4/IPv6) was suspected first and is NOT the cause - Node `fetch` reached both fine. Do not chase it.
+
+- **2026-07-08: Docker Desktop engine wedged during first-run setup (EOF / "other side closed").**
+  - *Symptom:* the Qdrant container hung in `Created`/spinning state; `compose start` failed with `error during connect: ... EOF`; stray auto-named qdrant containers appeared.
+  - *Contributing cause:* firing multiple concurrent Docker state-change commands (`compose up`, `docker start`) and killing them mid-operation left the engine in a bad state.
+  - *Fix:* full reset - quit Docker Desktop, `wsl --shutdown`, reopen, wait for "Engine running", then `docker compose up -d --force-recreate`. Verify with an HTTP GET to `http://127.0.0.1:6333/readyz` (expect 200), not just the container's "started" state.
+  - *Lesson:* do not fire overlapping Docker state-change commands. Run one, confirm it, then the next.
