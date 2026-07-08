@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectionFor } from "./repo.js";
+import { collectionFor, repoNameFromCollection } from "./repo.js";
 
 describe("collectionFor", () => {
   it("prefixes and lowercases a simple name", () => {
@@ -16,5 +16,15 @@ describe("collectionFor", () => {
 
   it("throws on an empty/sanitizes-to-nothing name", () => {
     expect(() => collectionFor("---")).toThrow();
+  });
+});
+
+describe("repoNameFromCollection", () => {
+  it("strips the codebase_ prefix", () => {
+    expect(repoNameFromCollection("codebase_clipmeta")).toBe("clipmeta");
+  });
+
+  it("returns the name unchanged when the prefix is absent", () => {
+    expect(repoNameFromCollection("clipmeta")).toBe("clipmeta");
   });
 });

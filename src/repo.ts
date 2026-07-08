@@ -15,3 +15,13 @@ export function collectionFor(repo: string): string {
   }
   return `${config.collectionPrefix}${sanitized}`;
 }
+
+/**
+ * Inverse of collectionFor, for display: strip the collection prefix to recover the repo name.
+ * If the prefix is absent, return the string unchanged.
+ */
+export function repoNameFromCollection(collection: string): string {
+  return collection.startsWith(config.collectionPrefix)
+    ? collection.slice(config.collectionPrefix.length)
+    : collection;
+}

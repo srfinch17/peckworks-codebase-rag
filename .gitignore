@@ -6,3 +6,5 @@ logs/*.jsonl
 .cache/
 # Qdrant local storage
 .qdrant_storage/
+# Web UI per-repo settings (local state)
+data/

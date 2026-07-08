@@ -20,6 +20,12 @@ export async function ensureCollection(collection: string): Promise<void> {
   }
 }
 
+/** List all collection names in Qdrant. Used to populate the web UI's repo picker. */
+export async function listCollections(): Promise<string[]> {
+  const { collections } = await client.getCollections();
+  return collections.map((c) => c.name);
+}
+
 /** Upsert chunks plus their vectors into a repo's collection. vectors[i] matches chunks[i]. */
 export async function upsertChunks(
   collection: string,

@@ -45,7 +45,30 @@ the future "RAG-ify a repo" skill (P4). Every entry records a design question an
   excellent retrieval fuel, and it's a codebase we know well, so we can judge whether the
   answers are actually right.
 
+## 2026-07-08 - local web UI (a second front door)
+
+- **A local web UI, added as a second thin front door - not a rewrite, not a separate repo.**
+  *Why:* better UX than the CLI, usable as a personal tool, and screenshot-friendly for a static
+  showcase. It reuses the exact pipeline modules the CLI uses (`answerQuestion`, `retrieve`); the
+  server is a dumb adapter, mirroring `cli/index.ts`.
+  *Considered & rejected:* a framework + build step (React/Vite), overkill for a local single-page
+  tool; a separate repo, which throws away the reuse that is the whole point.
+
+- **Query-only in v1; ingest stays a CLI command.**
+  *Why:* indexing is long-running; querying is the daily-use, screenshot-worthy part. Keeps v1 small.
+
+- **The Anthropic key stays server-side; the browser never sees it.**
+  *Why:* a key in browser-shipped code is world-readable and would be abused. This is also why a
+  static, backend-less page was not an option: the answer step needs the key and the embedder runs in
+  Node, so a small local server is required. A public demo, if ever wanted, is a static showcase
+  (screenshots + example Q&A), not a live keyed site.
+
+- **Per-repo tuning knobs persisted server-side (`data/settings.json`), not in the browser.**
+  *Why:* the ideal `topK` / `minScore` is a fact about a repo, not a browser preference, so it lives
+  with the server keyed by repo and carries across browsers on the machine. `localStorage` was
+  considered and rejected for being per-browser and not per-repo.
+
 ## Out of scope for now (parked, with reasons)
-- GraphRAG / Neo4j, reranking, hybrid (keyword+vector) search, hosted embeddings, web UI.
+- GraphRAG / Neo4j, reranking, hybrid (keyword+vector) search, hosted embeddings.
   *Why parked:* none are needed to get a working, useful tool; each is a natural "what's next"
   extension. Add only when a measured need appears.

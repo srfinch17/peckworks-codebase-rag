@@ -50,14 +50,19 @@ export function tryParseAnswer(raw: string): RagAnswer | null {
   }
 }
 
-export async function answerQuestion(repo: string, question: string): Promise<AnswerResult> {
-  const retrieved = await retrieve(repo, question);
+export async function answerQuestion(
+  repo: string,
+  question: string,
+  overrides: { topK?: number; minScore?: number } = {}
+): Promise<AnswerResult> {
+  const minScore = overrides.minScore ?? config.minScore;
+  const retrieved = await retrieve(repo, question, { topK: overrides.topK });
   const topScore = retrieved[0]?.score ?? 0;
 
   // Refusal guardrail: nothing retrieved, or the best match is too weak. Refuse BEFORE
   // spending an API call, so a question the codebase can't answer is also a cheap one.
-  if (retrieved.length === 0 || topScore < config.minScore) {
-    logEvent("answer", { repo, question, refused: true, topScore });
+  if (retrieved.length === 0 || topScore < minScore) {
+    logEvent("answer", { repo, question, refused: true, topScore, minScore });
     return {
       answer: {
         answer: "I don't have enough in this codebase to answer that confidently.",
