@@ -3,60 +3,134 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>peckworks codebase RAG</title>
+    <title>codebase RAG</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <header class="topbar">
-      <h1>peckworks <span class="accent">codebase RAG</span></h1>
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32">
+            <rect x="1" y="1" width="30" height="30" rx="8" fill="#0a0e14" />
+            <rect x="1.75" y="1.75" width="28.5" height="28.5" rx="7.25" fill="none" stroke="url(#lg)" stroke-width="1.5" opacity="0.9" />
+            <defs>
+              <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#35d0c4" />
+                <stop offset="1" stop-color="#8b7bf0" />
+              </linearGradient>
+            </defs>
+            <g stroke-linecap="round" stroke-width="3.4" fill="none">
+              <line x1="9" y1="24" x2="9" y2="19" stroke="#3a4a5e" />
+              <line x1="16" y1="24" x2="16" y2="13" stroke="#35d0c4" />
+              <line x1="23" y1="24" x2="23" y2="9" stroke="#35d0c4" />
+            </g>
+            <line x1="6" y1="16.5" x2="26" y2="16.5" stroke="#f2b544" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="1.6 2.6" />
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="wordmark">codebase<span class="dot">·</span>RAG</span>
+          <span class="eyebrow">retrieval-augmented search over your code</span>
+        </span>
+      </div>
       <label class="repo-picker">
-        <span>repo</span>
-        <select id="repo"></select>
+        <span class="conn" id="conn" title="connecting to local server"></span>
+        <span class="repo-label">repo</span>
+        <select id="repo" aria-label="repository"></select>
       </label>
     </header>
 
     <main>
+      <section class="intro" id="intro">
+        <h1 class="intro-title">Ask your codebase a question.</h1>
+        <p class="intro-lede">
+          It finds the most relevant code by meaning, answers only from what it found with
+          <code>path:line</code> citations, and tells you honestly when the answer isn't there.
+        </p>
+        <div class="examples">
+          <span class="examples-label">try</span>
+          <button class="chip" type="button" data-q="What does this project do?">What does this project do?</button>
+          <button class="chip" type="button" data-q="Where is the entry point?">Where is the entry point?</button>
+          <button class="chip" type="button" data-q="How are errors handled?">How are errors handled?</button>
+        </div>
+      </section>
+
       <form id="ask-form" class="ask-row" autocomplete="off">
-        <input id="question" type="text" placeholder="Ask about this codebase..." />
-        <button id="ask-btn" type="submit">Ask</button>
+        <span class="ask-icon" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="9" r="6" />
+            <line x1="14" y1="14" x2="17.5" y2="17.5" />
+          </svg>
+        </span>
+        <input id="question" type="text" placeholder="How does the mdat writer work?" />
+        <button id="ask-btn" type="submit">
+          <span>Ask</span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="4" y1="10" x2="15" y2="10" />
+            <polyline points="10,5 15,10 10,15" />
+          </svg>
+        </button>
       </form>
 
       <p id="status" class="status" hidden></p>
 
-      <section id="answer-panel" class="panel" hidden>
+      <section id="answer-panel" class="panel panel-answer" hidden>
         <div class="panel-head">
-          <h2>Answer</h2>
+          <span class="panel-title">
+            <svg class="panel-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 2.5l1.7 4.3 4.6.3-3.5 3 1.1 4.5L10 12.4 6 14.6l1.1-4.5-3.5-3 4.6-.3z" />
+            </svg>
+            Answer
+          </span>
           <span id="confidence" class="badge"></span>
         </div>
         <p id="answer-text" class="answer-text"></p>
         <div id="citations" class="citations"></div>
       </section>
 
-      <section id="retrieval-panel" class="panel" hidden>
+      <section id="retrieval-panel" class="panel panel-retrieval" hidden>
         <div class="panel-head">
-          <h2>Retrieval</h2>
-          <span class="hint">why it answered, or refused</span>
+          <span class="panel-title">
+            <svg class="panel-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+              <line x1="4" y1="15" x2="4" y2="11" />
+              <line x1="10" y1="15" x2="10" y2="6" />
+              <line x1="16" y1="15" x2="16" y2="3" />
+            </svg>
+            Retrieval
+          </span>
+          <span class="hint">ranked by similarity &middot; the amber line is the refusal floor</span>
         </div>
         <div id="retrieval" class="retrieval"></div>
       </section>
 
       <details class="advanced">
-        <summary>advanced &middot; tuning</summary>
+        <summary>
+          <svg class="panel-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <line x1="3" y1="6" x2="17" y2="6" /><circle cx="8" cy="6" r="2" fill="#0a0e14" />
+            <line x1="3" y1="14" x2="17" y2="14" /><circle cx="13" cy="14" r="2" fill="#0a0e14" />
+          </svg>
+          Tuning
+        </summary>
         <div class="controls">
           <label class="control">
-            <span>topK <b id="topk-val">8</b></span>
+            <span class="control-head">topK <b id="topk-val">8</b></span>
             <input id="topk" type="range" min="1" max="20" step="1" value="8" />
+            <span class="control-desc">how many code chunks to retrieve</span>
           </label>
           <label class="control">
-            <span>minScore <b id="minscore-val">0.25</b></span>
+            <span class="control-head">minScore <b id="minscore-val">0.25</b></span>
             <input id="minscore" type="range" min="0" max="1" step="0.01" value="0.25" />
+            <span class="control-desc">similarity floor, below which it refuses instead of guessing</span>
           </label>
-          <p class="controls-note">
-            Saved per repo, on this machine. Releasing a slider re-runs your last question.
-          </p>
+          <p class="controls-note">Saved per repo, on this machine. Releasing a slider re-runs your last question.</p>
         </div>
       </details>
     </main>
+
+    <footer class="footer">
+      <span class="foot-mark" aria-hidden="true"></span>
+      <span>Runs locally &middot; your API key stays on the server, never in the browser</span>
+    </footer>
 
     <script src="/app.js"></script>
   </body>

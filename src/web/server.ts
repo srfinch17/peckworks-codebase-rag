@@ -23,11 +23,13 @@ const STATIC: Record<string, string> = {
   "/index.html": "index.html",
   "/app.js": "app.js",
   "/styles.css": "styles.css",
+  "/favicon.svg": "favicon.svg",
 };
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml; charset=utf-8",
 };
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
