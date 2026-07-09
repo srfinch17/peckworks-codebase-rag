@@ -36,3 +36,13 @@ export function reciprocalRank(retrievedPaths: string[], expectFiles: string[]):
   if (index === -1) return 0; // no expected file in the list
   return 1 / (index + 1); // index is 0-based; a 1-based rank is what we want
 }
+
+/**
+ * Mirrors the refusal guardrail in answer.ts: refuse when the top retrieved score is below the
+ * minScore floor. Uses "<" so a score exactly on the floor answers, matching the real rule. The
+ * caller passes 0 for an empty result set (as answer.ts does via `retrieved[0]?.score ?? 0`), so
+ * "nothing came back" also refuses against any positive floor.
+ */
+export function wouldRefuse(topScore: number, minScore: number): boolean {
+  return topScore < minScore;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pathMatches, isHit, reciprocalRank } from "./score.js";
+import { pathMatches, isHit, reciprocalRank, wouldRefuse } from "./score.js";
 
 describe("pathMatches", () => {
   it("matches an exact repo-relative path", () => {
@@ -55,5 +55,23 @@ describe("reciprocalRank", () => {
 
   it("scores 0 when the expected file is absent", () => {
     expect(reciprocalRank(["a.cs", "b.cs"], ["Mp4Writer.cs"])).toBe(0);
+  });
+});
+
+describe("wouldRefuse", () => {
+  it("refuses when the top score is below the floor", () => {
+    expect(wouldRefuse(0.3, 0.5)).toBe(true);
+  });
+
+  it("answers when the top score is above the floor", () => {
+    expect(wouldRefuse(0.7, 0.5)).toBe(false);
+  });
+
+  it("answers when the top score sits exactly on the floor", () => {
+    expect(wouldRefuse(0.5, 0.5)).toBe(false);
+  });
+
+  it("refuses when nothing came back (score 0)", () => {
+    expect(wouldRefuse(0, 0.5)).toBe(true);
   });
 });
