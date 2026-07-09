@@ -24,3 +24,15 @@ export function pathMatches(chunkPath: string, expected: string): boolean {
 export function isHit(retrievedPaths: string[], expectFiles: string[]): boolean {
   return retrievedPaths.some((p) => expectFiles.some((e) => pathMatches(p, e)));
 }
+
+/**
+ * Reciprocal rank for one question: 1 / (position of the first matching file). A match at the
+ * top of the list scores 1.0; deeper matches score less; no match at all scores 0. Averaging
+ * this across questions gives MRR (mean reciprocal rank), which rewards ranking the right file
+ * high rather than merely somewhere in the top-K.
+ */
+export function reciprocalRank(retrievedPaths: string[], expectFiles: string[]): number {
+  const index = retrievedPaths.findIndex((p) => expectFiles.some((e) => pathMatches(p, e)));
+  if (index === -1) return 0; // no expected file in the list
+  return 1 / (index + 1); // index is 0-based; a 1-based rank is what we want
+}

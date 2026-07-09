@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pathMatches, isHit } from "./score.js";
+import { pathMatches, isHit, reciprocalRank } from "./score.js";
 
 describe("pathMatches", () => {
   it("matches an exact repo-relative path", () => {
@@ -40,5 +40,20 @@ describe("isHit", () => {
 
   it("is true if any one of several expected files is present", () => {
     expect(isHit(["src/Mp4/Mp4Writer.cs"], ["src/Foo.cs", "Mp4Writer.cs"])).toBe(true);
+  });
+});
+
+describe("reciprocalRank", () => {
+  it("scores 1 when the expected file is first in the list", () => {
+    expect(reciprocalRank(["src/Mp4/Mp4Writer.cs", "README.md"], ["Mp4Writer.cs"])).toBe(1);
+  });
+
+  it("scores 1/4 when the expected file is fourth", () => {
+    const retrieved = ["a.cs", "b.cs", "c.cs", "src/Mp4/Mp4Writer.cs"];
+    expect(reciprocalRank(retrieved, ["Mp4Writer.cs"])).toBe(0.25);
+  });
+
+  it("scores 0 when the expected file is absent", () => {
+    expect(reciprocalRank(["a.cs", "b.cs"], ["Mp4Writer.cs"])).toBe(0);
   });
 });
