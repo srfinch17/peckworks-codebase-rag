@@ -68,6 +68,37 @@ and the answer we chose.
   with the server keyed by repo and carries across browsers on the machine. `localStorage` was
   considered and rejected for being per-browser and not per-repo.
 
+## 2026-07-09 - retrieval evaluation (a measured baseline)
+
+- **Grade retrieval, not answer text, and do it without the model.**
+  *Why:* the question this eval answers is "does the right code come back," which is exactly what
+  chunking and embedding choices change. Both the hit check and the refusal check are computable
+  from retrieval output plus the `minScore` threshold, with no API call, so a run is free,
+  deterministic, and repeatable - the properties a baseline needs to be trustworthy across runs.
+  *Considered & rejected:* a full-pipeline eval that calls the model and grades the prose answer;
+  rejected as nondeterministic, paid, and adding no signal for the variable under test.
+
+- **Hand-validated golden set as ground truth.**
+  *Why:* the expected file for each question must come from someone who knows the code, not from
+  the RAG's own output. Grading a tool against its own answers is circular and would score near
+  100% while meaning nothing. Candidates were drafted from the target repo's real source and
+  validated by hand.
+
+- **File-level hit matching, plus MRR and refusal-accuracy.**
+  *Why:* file-level matching is robust to chunk boundaries shifting between runs; MRR adds ranking
+  resolution that a pass/fail hit-rate throws away; refusal-accuracy grades the guardrail.
+
+- **First baseline, and what it surfaced (clipmeta, topK=8, minScore=0.25).**
+  Baseline hit-rate was 11.1% (2 of 18). Inspecting the misses revealed the cause: with a
+  text-tuned embedding model, natural-language questions retrieve the prose that *describes* the
+  code (design docs, READMEs) ahead of the code itself. Restricting retrieval to code chunks
+  (`--code-only`) raised hit-rate to 61.1% (11 of 18), confirming the code was being outranked
+  rather than being unreachable. That flag is a diagnostic, not a general fix (it would hurt
+  questions whose answer genuinely lives in prose); the finding is what motivates code-tuned
+  embeddings and symbol-aware chunking, both now measurable against this baseline. Separately,
+  every should-refuse question scored above 0.25, so the refusal floor is set too low and needs
+  raising.
+
 ## Out of scope for now (parked, with reasons)
 - GraphRAG / Neo4j, reranking, hybrid (keyword+vector) search, hosted embeddings.
   *Why parked:* none are needed to get a working, useful tool; each is a natural "what's next"

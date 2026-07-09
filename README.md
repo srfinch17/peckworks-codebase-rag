@@ -51,6 +51,30 @@ chunk's similarity score against the refusal threshold. Two live-tunable knobs, 
 (`topK`) and the refusal floor (`minScore`), are saved per repository. The Anthropic key stays on
 the local server and is never sent to the browser.
 
+## Evaluation
+
+Retrieval quality is measured against a hand-curated golden set: a list of questions, each paired
+with the source file where the answer actually lives. The eval runs every question through
+retrieval and checks whether the expected file comes back, producing three numbers:
+
+- **hit-rate@K** - the share of answerable questions whose expected file lands in the top-K chunks.
+- **MRR** (mean reciprocal rank) - how highly the expected file ranked, rewarding a result at
+  position 1 over one buried at position 8.
+- **refusal-accuracy** - the share of should-refuse questions that correctly fall below the
+  `minScore` floor.
+
+The eval never calls the model: both "did the right file come back" and "did it correctly refuse"
+come from retrieval output and the `minScore` threshold, so a run is free, offline, and
+deterministic - a reliable baseline to measure chunking or embedding changes against.
+
+```bash
+npm run eval -- --repo clipmeta                  # score against eval/clipmeta.golden.json
+npm run eval -- --repo clipmeta --code-only      # restrict retrieval to code chunks
+npm run eval -- --repo clipmeta --topK 12 --minScore 0.4
+```
+
+Results print as a scoreboard and are written to `eval/results/<repo>-latest.json`.
+
 ## Design
 
 The pipeline modules are the product; the CLI and the web UI are thin front doors over them. Every
