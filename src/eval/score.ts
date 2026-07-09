@@ -16,3 +16,11 @@ export function pathMatches(chunkPath: string, expected: string): boolean {
   const exp = expected.replace(/\\/g, "/");
   return chunkPath === exp || chunkPath.endsWith("/" + exp);
 }
+
+/**
+ * A "hit" for one question: did any retrieved path match any expected file? This is the yes/no
+ * that the headline hit-rate counts up across the golden set.
+ */
+export function isHit(retrievedPaths: string[], expectFiles: string[]): boolean {
+  return retrievedPaths.some((p) => expectFiles.some((e) => pathMatches(p, e)));
+}
