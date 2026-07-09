@@ -11,6 +11,7 @@ interface Args {
   goldenPath?: string;
   topK?: number;
   minScore?: number;
+  codeOnly?: boolean;
 }
 
 function parseArgs(rest: string[]): Args {
@@ -21,6 +22,7 @@ function parseArgs(rest: string[]): Args {
     else if (a === "--golden") args.goldenPath = rest[++i];
     else if (a === "--topK") args.topK = Number(rest[++i]);
     else if (a === "--minScore") args.minScore = Number(rest[++i]);
+    else if (a === "--code-only") args.codeOnly = true;
   }
   return args;
 }
@@ -28,11 +30,16 @@ function parseArgs(rest: string[]): Args {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (!args.repo) {
-    console.error("Usage: npm run eval -- --repo <name> [--golden <path>] [--topK <n>] [--minScore <x>]");
+    console.error("Usage: npm run eval -- --repo <name> [--golden <path>] [--topK <n>] [--minScore <x>] [--code-only]");
     process.exit(1);
   }
   const goldenPath = args.goldenPath ?? `eval/${args.repo}.golden.json`;
-  const run = await runEval(args.repo, goldenPath, { topK: args.topK, minScore: args.minScore });
+  const run = await runEval(args.repo, goldenPath, {
+    topK: args.topK,
+    minScore: args.minScore,
+    ...(args.codeOnly ? { typeFilter: "code" as const } : {}),
+  });
+  if (run.typeFilter) console.log(`\n(retrieval restricted to ${run.typeFilter} chunks)`);
   console.log(
     "\n" +
       formatScoreboard(run.results, run.summary, {
