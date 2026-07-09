@@ -1,0 +1,174 @@
+[
+  {
+    "id": "big-endian-writer",
+    "repo": "clipmeta",
+    "question": "How does clipmeta write big-endian integers to an MP4 file?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Mp4/BigEndianWriter.cs"],
+    "note": "static utility that emits big-endian 16/32/64-bit integers when serializing boxes"
+  },
+  {
+    "id": "box-tree-parse",
+    "repo": "clipmeta",
+    "question": "Where is the MP4 box/atom hierarchy parsed into a tree?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Mp4/Mp4Parser.cs"],
+    "note": "ParseBoxes recursively walks byte ranges and builds the BoxNode tree"
+  },
+  {
+    "id": "box-header-struct",
+    "repo": "clipmeta",
+    "question": "What struct represents a parsed MP4 box header (size, type, header length)?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Mp4/BoxHeader.cs"],
+    "note": "record struct modelling a decoded box header"
+  },
+  {
+    "id": "read-metadata-fields",
+    "repo": "clipmeta",
+    "question": "How does clipmeta read its metadata fields out of a parsed box tree?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Read/ClipMetaReader.cs"],
+    "note": "GetFields collects the clipmeta freeform atoms into (field, value) pairs"
+  },
+  {
+    "id": "search-metadata",
+    "repo": "clipmeta",
+    "question": "How does clipmeta search indexed metadata for a field and value match?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Read/ClipMetaSearch.cs"],
+    "note": "Find does case-insensitive substring matching against the loaded index"
+  },
+  {
+    "id": "field-stats",
+    "repo": "clipmeta",
+    "question": "Where does clipmeta compute stats on which metadata fields are set, unset, or custom?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Read/ClipMetaStats.cs"],
+    "note": "Categorize splits a clip's fields into set/known-unset/custom for CLI and MCP"
+  },
+  {
+    "id": "safe-write",
+    "repo": "clipmeta",
+    "question": "How does clipmeta safely write tag metadata changes into an MP4 file?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Write/Mp4Writer.cs"],
+    "note": "WriteMetadata: parse, stream to temp, verify, then atomic File.Replace"
+  },
+  {
+    "id": "metadata-mutation",
+    "repo": "clipmeta",
+    "question": "What class describes the set of metadata changes to apply to a clip?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Write/MetadataMutation.cs"],
+    "note": "request object carrying SetFields/AppendFields/DeleteFields/ClearAll/DryRun"
+  },
+  {
+    "id": "freeform-atom-write",
+    "repo": "clipmeta",
+    "question": "How does clipmeta write a freeform ---- atom with mean, name, and data children?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Write/FreeformAtomWriter.cs"],
+    "note": "Write emits the full ---- atom (mean domain + name field + UTF-8 data box)"
+  },
+  {
+    "id": "normalize-tag",
+    "repo": "clipmeta",
+    "question": "Where does clipmeta normalize and lowercase a tag value before writing it?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Write/Normalizer.cs"],
+    "note": "canonical value rules (lowercasing, pipe-list dedup, timecode/rating canonicalization)"
+  },
+  {
+    "id": "review-watcher",
+    "repo": "clipmeta",
+    "question": "What drives the background watching that tracks which media-player window is active?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Watching/ReviewWatcher.cs"],
+    "note": "polling background driver that records title segments as player windows change"
+  },
+  {
+    "id": "tag-queue",
+    "repo": "clipmeta",
+    "question": "Where does clipmeta persist deferred tags for clips that are locked while playing?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Watching/TagQueue.cs"],
+    "note": "durable .clipmeta-queue store holding tags until the player's file lock clears"
+  },
+  {
+    "id": "drain-journal",
+    "repo": "clipmeta",
+    "question": "How does clipmeta report tags that the background pump auto-flushed from the queue?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Watching/DrainJournal.cs"],
+    "note": "report-once buffer recording auto-flushed tags for the next watching/flush call"
+  },
+  {
+    "id": "player-title-parse",
+    "repo": "clipmeta",
+    "question": "How does clipmeta extract an .mp4 reference from a media player's window title?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Watching/PlayerTitleParser.cs"],
+    "note": "pure regex extractor pulling a path (MPC-HC) or filename (VLC) out of a title"
+  },
+  {
+    "id": "library-title-match",
+    "repo": "clipmeta",
+    "question": "How does clipmeta match a player window title against known library filenames?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/Watching/LibraryTitleMatcher.cs"],
+    "note": "FindBestMatch does boundary-aware matching of known basenames inside a title"
+  },
+  {
+    "id": "mcp-write-tool",
+    "repo": "clipmeta",
+    "question": "Which MCP tool lets the model write metadata fields into a clip, and where is it defined?",
+    "kind": "answerable",
+    "expectFiles": ["clipmetamcp/Tools/WriteTools.cs"],
+    "note": "RegisterAll defines clip_set_fields and the other write tools over Core's Mp4Writer"
+  },
+  {
+    "id": "cli-export",
+    "repo": "clipmeta",
+    "question": "Where does the clipmeta CLI export metadata records to JSON or CSV?",
+    "kind": "answerable",
+    "expectFiles": ["clipmetascribe/Commands/ExportCommand.cs"],
+    "note": "Run formats records as JSON or CSV and returns the exit code"
+  },
+  {
+    "id": "version-report",
+    "repo": "clipmeta",
+    "question": "Where does clipmeta report its product version consistently across all binaries?",
+    "kind": "answerable",
+    "expectFiles": ["clipmeta.core/ClipMetaVersion.cs"],
+    "note": "Current is the single runtime version source read from the stamped assembly attribute"
+  },
+  {
+    "id": "transcode-refuse",
+    "repo": "clipmeta",
+    "question": "How do I use clipmeta to transcode or re-encode an MP4 into a different codec or resolution?",
+    "kind": "refuse",
+    "note": "no codec/transcoding code; the mdat payload is stream-copied byte-for-byte, never decoded"
+  },
+  {
+    "id": "cloud-upload-refuse",
+    "repo": "clipmeta",
+    "question": "Where does clipmeta upload tagged clips to the cloud or an S3 bucket?",
+    "kind": "refuse",
+    "note": "no networking code anywhere (no HttpClient/WebClient/sockets)"
+  },
+  {
+    "id": "waveform-refuse",
+    "repo": "clipmeta",
+    "question": "How does clipmeta render an audio waveform or generate a thumbnail preview of a clip?",
+    "kind": "refuse",
+    "note": "parser reads only box-header metadata, never sample data; no audio/image rendering"
+  },
+  {
+    "id": "sql-database-refuse",
+    "repo": "clipmeta",
+    "question": "Does clipmeta store its metadata in a SQLite or SQL database?",
+    "kind": "refuse",
+    "note": "metadata lives inside the MP4 files; the optional search index is a plain JSON file"
+  }
+]
