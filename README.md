@@ -1,5 +1,7 @@
 # codebase RAG
 
+[![CI](https://github.com/srfinch17/peckworks-codebase-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/srfinch17/peckworks-codebase-rag/actions/workflows/ci.yml)
+
 Ask natural-language questions about a codebase and get grounded, cited answers, or an honest
 "I don't know" when the code doesn't contain the answer. Point it at a repository; it indexes the
 source and docs into a searchable vector store, and every answer comes back with `path:line`
