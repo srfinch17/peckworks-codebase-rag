@@ -41,29 +41,36 @@ export async function listCollections(): Promise<string[]> {
   return collections.map((c) => c.name);
 }
 
-/** Upsert chunks plus their vectors into a repo's collection. vectors[i] matches chunks[i]. */
+// Qdrant rejects any single request body over its 32 MB limit. All points in one upsert blows
+// past that for a real repo once vectors are wide (768-dim + text payloads ~ 44 MB), so we send
+// them in batches. Sized well under the limit to leave headroom for larger payloads or models.
+const UPSERT_BATCH_SIZE = 128;
+
+/** Upsert chunks plus their vectors into a repo's collection, in batches. vectors[i] matches chunks[i]. */
 export async function upsertChunks(
   collection: string,
   chunks: Chunk[],
   vectors: number[][]
 ): Promise<void> {
-  if (chunks.length === 0) return;
-  await client.upsert(collection, {
-    wait: true,
-    points: chunks.map((chunk, i) => ({
-      id: chunk.id,
-      vector: vectors[i]!,
-      payload: {
-        repo: chunk.repo,
-        path: chunk.path,
-        type: chunk.type,
-        position: chunk.position,
-        startLine: chunk.startLine,
-        endLine: chunk.endLine,
-        text: chunk.text,
-      },
-    })),
-  });
+  const points = chunks.map((chunk, i) => ({
+    id: chunk.id,
+    vector: vectors[i]!,
+    payload: {
+      repo: chunk.repo,
+      path: chunk.path,
+      type: chunk.type,
+      position: chunk.position,
+      startLine: chunk.startLine,
+      endLine: chunk.endLine,
+      text: chunk.text,
+    },
+  }));
+  for (let i = 0; i < points.length; i += UPSERT_BATCH_SIZE) {
+    await client.upsert(collection, {
+      wait: true,
+      points: points.slice(i, i + UPSERT_BATCH_SIZE),
+    });
+  }
 }
 
 /** Cosine nearest-neighbour search in a repo's collection, optionally filtered by type. */
