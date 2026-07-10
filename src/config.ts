@@ -38,11 +38,12 @@ export const config = {
   // because code answers often need a few neighboring chunks for context.
   topK: 8,
   // Refusal guardrail: if the best match scores below this, return an honest "not found"
-  // instead of a possibly-hallucinated answer. Tuned against eval/clipmeta.golden.json: the
-  // text-tuned embedder scores answerable and unanswerable questions in the same 0.56-0.65
-  // band, so no floor cleanly separates them. 0.57 is the best point on that tradeoff curve
-  // (catches the 2 weakest false-premise questions for 1 false refusal); higher floors reject
-  // real answers faster than they catch fakes. See docs/DECISIONS.md.
+  // instead of a possibly-hallucinated answer. Kept low as a safety net (catches near-empty
+  // retrieval), NOT as a fake-question filter: with either embedder the answerable and
+  // unanswerable score ranges OVERLAP (jina: answerable 0.61-0.85, should-refuse 0.63-0.69),
+  // so no floor separates them without wrongly refusing real answers. Refusal by threshold is
+  // a dead end here; a semantic "do these passages answer it?" judge is the real fix. See
+  // docs/DECISIONS.md.
   minScore: 0.57,
 
   // --- STEP 5: answer ---

@@ -17,8 +17,9 @@ A five-stage pipeline, each stage an isolated, swappable module:
 
 - **chunk** - source is split into line windows, so a citation points at a real `path:line`; prose
   is split into character windows.
-- **embed** - a local MiniLM model turns each chunk into a 384-dimension vector. Runs offline; no
-  code leaves the machine at index time.
+- **embed** - a local, code-tuned model (jina-embeddings-v2-base-code) turns each chunk into a
+  768-dimension vector. Runs offline; no code leaves the machine at index time. The model is a
+  config knob (`config.localModelId`), so it is a one-line swap.
 - **store** - vectors go into Qdrant, one collection per repository.
 - **retrieve** - the question is embedded the same way, and the nearest chunks by cosine similarity
   are pulled back.
@@ -68,6 +69,10 @@ retrieval and checks whether the expected file comes back, producing three numbe
 The eval never calls the model: both "did the right file come back" and "did it correctly refuse"
 come from retrieval output and the `minScore` threshold, so a run is free, offline, and
 deterministic - a reliable baseline to measure chunking or embedding changes against.
+
+On the clipmeta golden set, switching the embedder from a text-tuned model (all-MiniLM-L6-v2) to a
+code-tuned one (jina-embeddings-v2-base-code) raised hit-rate@8 from 11% to 61% and MRR from 0.07
+to 0.43 - the text model had been ranking prose above the code it describes.
 
 ```bash
 npm run eval -- --repo clipmeta                  # score against eval/clipmeta.golden.json

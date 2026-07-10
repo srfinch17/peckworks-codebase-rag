@@ -18,15 +18,19 @@ Consult before touching ingest, chunking, or the Qdrant store. Append every real
   *on purpose*; Phase 2 (tree-sitter symbol-aware chunking) fixes it and we measure the
   hit-rate gain against this baseline. Don't "fix" it early: the baseline is the point.
 
-- **`minScore` is tuned for prose (0.25).** Inherited from the document lab. It may
-  mis-refuse (or under-refuse) on code until re-tuned against the clipmeta golden set in
-  Phase 2. If the guardrail behaves oddly in the P1 end-to-end run, record the observed top
-  scores here rather than blindly changing the number.
+- **`minScore` is a low safety net, not a fake-question filter (0.57).** Measured against the
+  clipmeta golden set: with both the text-tuned and code-tuned embedders, answerable and
+  unanswerable questions score in overlapping ranges (jina: answerable 0.61-0.85, should-refuse
+  0.63-0.69), so no threshold cleanly separates them. The floor is kept low to avoid wrongly
+  refusing real answers; catching false-premise questions needs a different mechanism (a semantic
+  "do these passages answer it?" judge), not a higher number. See DECISIONS (2026-07-10).
 
-- **Embeddings come from a text model (MiniLM), used on code.** MiniLM was trained on
-  natural language, not source. It still works, but a code-tuned or hosted embedder may
-  retrieve better: the `Embedder` interface (`src/embed.ts`) is the swap point. Measure
-  before swapping.
+- **Embeddings are code-tuned (jina-embeddings-v2-base-code, 768-dim), swapped from MiniLM.**
+  MiniLM (text-tuned) ranked prose above the code it described; swapping to the code-tuned jina
+  model raised hit-rate 11% -> 61% on the clipmeta golden set (DECISIONS, 2026-07-10). The
+  `Embedder` interface (`src/embed.ts`) and `config.localModelId` remain the swap point. Residual
+  cost: jina is ~7x larger, so ingest is slower and the model download is bigger. Changing the
+  model changes `embeddingDim` and requires a `--recreate` re-ingest.
 
 - **Re-ingesting upserts; it does not delete stale chunks.** If files are removed or
   renamed between ingests, their old chunks linger in the collection (point IDs are random
@@ -48,3 +52,21 @@ Consult before touching ingest, chunking, or the Qdrant store. Append every real
   - *Contributing cause:* firing multiple concurrent Docker state-change commands (`compose up`, `docker start`) and killing them mid-operation left the engine in a bad state.
   - *Fix:* full reset - quit Docker Desktop, `wsl --shutdown`, reopen, wait for "Engine running", then `docker compose up -d --force-recreate`. Verify with an HTTP GET to `http://127.0.0.1:6333/readyz` (expect 200), not just the container's "started" state.
   - *Lesson:* do not fire overlapping Docker state-change commands. Run one, confirm it, then the next.
+
+- **2026-07-10: Qdrant `Bad Request` / `fetch failed` on ingest was a 32 MB request-size limit.**
+  - *Symptom:* after swapping to 768-dim embeddings, `npm run ingest` failed with a bare `Bad
+    Request` (or `TypeError: fetch failed` at the transport). `--recreate` had already rebuilt the
+    collection; it died at the upsert with zero points stored.
+  - *Root cause:* `upsertChunks` sent all points in one request. Qdrant caps a request body at 32
+    MB (`33554432` bytes); a full repo of 768-dim vectors plus text payloads serializes to ~44 MB.
+    The exact server message is only in the client error's `data` (`"JSON payload (44375260 bytes)
+    is larger than allowed (limit: 33554432 bytes)"`), not in the top-level `Bad Request`.
+  - *Diagnosis tip:* this shares the `fetch failed` symptom with the 2026-07-08 undici gotcha but
+    is a different cause. Read the client error's `data` (Qdrant size limit) and `err.cause`
+    (undici dispatcher) before assuming either.
+  - *Why it was latent:* MiniLM's 384-dim vectors made a ~24 MB request, just under the limit;
+    doubling the vector width exposed a bug that was never model-specific.
+  - *Fix:* batch the upsert (`UPSERT_BATCH_SIZE = 128` in `src/store.ts`) so no single request is
+    oversized.
+  - *Also observed:* deleting a collection and immediately re-creating it can race (Qdrant returns
+    `Bad Request: Collection data already exists`); retry the create if it happens.

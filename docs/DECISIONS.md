@@ -121,6 +121,46 @@ and the answer we chose.
   model, not a better threshold. This tuning is the honest ceiling of the current model and the
   measured motivation for that swap.
 
+## 2026-07-10 - code-tuned embeddings (jina-embeddings-v2-base-code)
+
+- **Swap the text-tuned local embedder (MiniLM) for a free, code-tuned local one - not the paid
+  cloud voyage-code-3 the roadmap named.**
+  *Why:* the 11% baseline was caused by a text-tuned model ranking prose above code, so a code-tuned
+  model is the targeted fix. Two constraints decided which one: cost had to be $0, and privacy was
+  moot (the target repos are public), which removed the only reason to prefer cloud. That points to a
+  free, open, code-tuned model that runs locally. `jinaai/jina-embeddings-v2-base-code` (Apache-2.0,
+  trained on ~150M docstring-to-code pairs, 30+ languages including C#) fits, and runs in the same
+  `@xenova/transformers` pipeline the local MiniLM used, so the swap is a config change plus a
+  dimension bump (384 -> 768) and a re-ingest.
+  *Considered & rejected:* voyage-code-3 (paid, cloud, needs a key - no benefit over a free local
+  model for a public repo); a stronger general model such as EmbeddingGemma (not code-specific);
+  training a model (months of work to reproduce what is freely available).
+
+- **Result: hit-rate 11.1% -> 61.1%, MRR 0.069 -> 0.425 on the clipmeta golden set.**
+  *Why it matters:* the all-types hit-rate rose to exactly the level MiniLM reached only when
+  retrieval was artificially restricted to code (`--code-only`, 61.1%), confirming the prediction
+  that the text model had been drowning code under the prose that describes it. The "no code leaves
+  the machine" property is preserved, because jina runs locally too.
+
+- **One model embeds both code and docs; a two-model (code + text) design is parked.**
+  *Why:* retrieval compares a question's vector to stored vectors by cosine distance, which is only
+  meaningful within one model's vector space, so a single collection must use a single model. jina
+  handles English (it is English + code), so it embeds the markdown docs acceptably. A two-model
+  design (separate indexes, dual query embedding, score fusion) is more machinery than the gain
+  justifies now; revisit only if prose-answered questions regress.
+
+- **Refusal by similarity threshold is a dead end here, even with the better model.**
+  *Why:* jina lifted all scores, but the answerable (0.61-0.85) and should-refuse (0.63-0.69) ranges
+  still overlap, because an unanswerable question still retrieves moderately similar real code.
+  `minScore` is kept low (0.57) as a safety net against near-empty retrieval, not as a fake-question
+  filter. The real refusal fix is a semantic judge ("do these passages actually answer the
+  question?"), now a data-backed future item.
+
+- **A latent bulk-upsert bug surfaced and was fixed at the source.**
+  *Why:* `upsertChunks` sent all points in one request; 768-dim vectors pushed the body past Qdrant's
+  32 MB limit. Fixed by batching the upsert (128 points per request) in `src/store.ts`, so any repo
+  size and vector width is safe. See PITFALLS (2026-07-10).
+
 ## Out of scope for now (parked, with reasons)
 - GraphRAG / Neo4j, reranking, hybrid (keyword+vector) search, hosted embeddings.
   *Why parked:* none are needed to get a working, useful tool; each is a natural "what's next"
