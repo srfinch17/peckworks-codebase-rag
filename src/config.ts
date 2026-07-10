@@ -20,9 +20,13 @@ export const config = {
 
   // --- STEP 2: embeddings ---
   embedder: (process.env.EMBEDDER ?? "local") as "local",
-  // MiniLM produces 384-dimension vectors. This must match the embedding model:
-  // changing the model changes this number, which requires re-creating the collection.
-  embeddingDim: 384,
+  // Local embedding model id (HuggingFace, ONNX/Transformers.js). Code-tuned: trained on
+  // docstring-to-source-code pairs, so English questions rank code above the prose that
+  // describes it. Swap back to "Xenova/all-MiniLM-L6-v2" (with embeddingDim 384) to compare.
+  localModelId: process.env.LOCAL_MODEL_ID ?? "jinaai/jina-embeddings-v2-base-code",
+  // Vector size. MUST match the model above (jina-code = 768, MiniLM = 384). Changing this
+  // requires re-creating the collection (see the --recreate ingest flag).
+  embeddingDim: 768,
 
   // --- STEP 3: vector store (Qdrant) ---
   qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",

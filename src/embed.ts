@@ -15,7 +15,7 @@ class LocalEmbedder implements Embedder {
   private extractor: any = null;
 
   private async init() {
-    this.extractor ??= await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    this.extractor ??= await pipeline("feature-extraction", config.localModelId);
     return this.extractor;
   }
 
