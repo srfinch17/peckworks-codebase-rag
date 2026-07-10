@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getSettings, saveSettings, getLastRepo } from "./settings.js";
+import { config } from "../config.js";
 
 /**
  * The settings module reads its file path from SETTINGS_PATH at call time, so each test points
@@ -23,7 +24,7 @@ afterEach(() => {
 
 describe("settings", () => {
   it("returns config defaults for an unknown repo", () => {
-    expect(getSettings("clipmeta")).toEqual({ topK: 8, minScore: 0.25 });
+    expect(getSettings("clipmeta")).toEqual({ topK: config.topK, minScore: config.minScore });
   });
 
   it("round-trips saved knobs per repo", () => {
@@ -33,7 +34,7 @@ describe("settings", () => {
 
   it("keeps repos isolated", () => {
     saveSettings("clipmeta", { topK: 5, minScore: 0.4 });
-    expect(getSettings("other")).toEqual({ topK: 8, minScore: 0.25 });
+    expect(getSettings("other")).toEqual({ topK: config.topK, minScore: config.minScore });
   });
 
   it("records lastRepo on save", () => {
@@ -43,7 +44,7 @@ describe("settings", () => {
 
   it("falls back to defaults on a corrupted file", () => {
     writeFileSync(process.env.SETTINGS_PATH!, "{ not json");
-    expect(getSettings("clipmeta")).toEqual({ topK: 8, minScore: 0.25 });
+    expect(getSettings("clipmeta")).toEqual({ topK: config.topK, minScore: config.minScore });
     expect(getLastRepo()).toBe(null);
   });
 });

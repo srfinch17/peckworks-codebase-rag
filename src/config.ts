@@ -34,8 +34,12 @@ export const config = {
   // because code answers often need a few neighboring chunks for context.
   topK: 8,
   // Refusal guardrail: if the best match scores below this, return an honest "not found"
-  // instead of a possibly-hallucinated answer. Starting value; tune against a real Q&A set.
-  minScore: 0.25,
+  // instead of a possibly-hallucinated answer. Tuned against eval/clipmeta.golden.json: the
+  // text-tuned embedder scores answerable and unanswerable questions in the same 0.56-0.65
+  // band, so no floor cleanly separates them. 0.57 is the best point on that tradeoff curve
+  // (catches the 2 weakest false-premise questions for 1 false refusal); higher floors reject
+  // real answers faster than they catch fakes. See docs/DECISIONS.md.
+  minScore: 0.57,
 
   // --- STEP 5: answer ---
   answerModel: process.env.ANSWER_MODEL ?? "claude-opus-4-8",

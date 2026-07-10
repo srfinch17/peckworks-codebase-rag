@@ -99,6 +99,28 @@ and the answer we chose.
   every should-refuse question scored above 0.25, so the refusal floor is set too low and needs
   raising.
 
+## 2026-07-10 - refusal floor tuning (minScore 0.25 -> 0.57)
+
+- **Raise the floor to 0.57 - the best point on a tradeoff curve, not a clean separator.**
+  *Why:* the 2026-07-09 baseline showed every should-refuse question scoring 0.56-0.64, sitting
+  inside the answerable range (0.50-0.82). The two score groups overlap, so no single floor
+  separates them: any floor high enough to reject the unanswerable questions also rejects some
+  real answers (a "false refusal"). Reading the per-question scores, 0.57 is the one point that
+  catches the two weakest false-premise questions for a single false refusal; below it nothing is
+  caught, and above it real answers are lost faster than fakes (a 0.65 floor would refuse all 4
+  but wrongly reject 7 of 18 answerable questions). Re-running the eval confirmed the move:
+  refusals 0/4 -> 2/4, hit-rate unchanged at 11.1% (the floor affects only the answer/refuse
+  decision, not what is retrieved), with one answerable question now wrongly refused.
+  *Considered & rejected:* a 0.65 floor to force 4/4 refusals, rejected for the 7 false refusals
+  it costs; leaving 0.25, rejected because it refuses nothing.
+
+- **The overlap is the finding: a threshold cannot fix what the embedding model cannot separate.**
+  *Why:* the same text-tuned model that ranks prose above code (the 11% baseline) also scores
+  unanswerable questions as highly as answerable ones, because the corpus prose mentions features
+  the code does not implement. Pulling the two score groups apart requires a code-tuned embedding
+  model, not a better threshold. This tuning is the honest ceiling of the current model and the
+  measured motivation for that swap.
+
 ## Out of scope for now (parked, with reasons)
 - GraphRAG / Neo4j, reranking, hybrid (keyword+vector) search, hosted embeddings.
   *Why parked:* none are needed to get a working, useful tool; each is a natural "what's next"
