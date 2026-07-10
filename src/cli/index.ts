@@ -10,6 +10,7 @@ import { answerQuestion } from "../answer.js";
 interface Args {
   repo?: string;
   dir?: string;
+  recreate: boolean;
   positional: string[];
 }
 
@@ -17,13 +18,15 @@ function parseArgs(rest: string[]): Args {
   const positional: string[] = [];
   let repo: string | undefined;
   let dir: string | undefined;
+  let recreate = false;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]!;
     if (a === "--repo") repo = rest[++i];
     else if (a === "--dir") dir = rest[++i];
+    else if (a === "--recreate") recreate = true;
     else positional.push(a);
   }
-  return { repo, dir, positional };
+  return { repo, dir, recreate, positional };
 }
 
 async function runIngest(args: Args): Promise<void> {
@@ -32,7 +35,7 @@ async function runIngest(args: Args): Promise<void> {
     console.error("Usage: npm run ingest -- --repo <name> --dir <path>");
     process.exit(1);
   }
-  const { files, chunks } = await ingestRepo(args.repo, dir);
+  const { files, chunks } = await ingestRepo(args.repo, dir, { recreate: args.recreate });
   console.log(`Ingested ${chunks} chunks from ${files} files into repo "${args.repo}".`);
 }
 

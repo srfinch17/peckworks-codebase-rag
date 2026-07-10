@@ -20,6 +20,21 @@ export async function ensureCollection(collection: string): Promise<void> {
   }
 }
 
+/**
+ * Drop the collection if it exists, then create it fresh at the current embedding dim.
+ * Use when the embedding model (and thus vector size) changes: a Qdrant collection's vector
+ * size is fixed at creation, so a model swap needs a rebuild, not an upsert. Destructive.
+ */
+export async function recreateCollection(collection: string): Promise<void> {
+  const { collections } = await client.getCollections();
+  if (collections.some((c) => c.name === collection)) {
+    await client.deleteCollection(collection);
+  }
+  await client.createCollection(collection, {
+    vectors: { size: config.embeddingDim, distance: "Cosine" },
+  });
+}
+
 /** List all collection names in Qdrant. Used to populate the web UI's repo picker. */
 export async function listCollections(): Promise<string[]> {
   const { collections } = await client.getCollections();

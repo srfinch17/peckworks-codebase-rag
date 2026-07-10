@@ -4,7 +4,7 @@ import { walkRepo } from "./walk.js";
 import { chunkCode } from "./chunkCode.js";
 import { chunkText } from "./chunk.js";
 import { getEmbedder } from "./embed.js";
-import { ensureCollection, upsertChunks } from "./store.js";
+import { ensureCollection, recreateCollection, upsertChunks } from "./store.js";
 import { collectionFor } from "./repo.js";
 import { logEvent } from "./log.js";
 import type { Chunk, ChunkType } from "./types.js";
@@ -29,7 +29,8 @@ export function classify(relPath: string): ChunkType | null {
  */
 export async function ingestRepo(
   repo: string,
-  dir: string
+  dir: string,
+  options: { recreate?: boolean } = {}
 ): Promise<{ files: number; chunks: number }> {
   const collection = collectionFor(repo);
   const walked = walkRepo(dir);
@@ -54,7 +55,11 @@ export async function ingestRepo(
     throw new Error(`No indexable code/doc files found under ${dir}.`);
   }
 
-  await ensureCollection(collection);
+  if (options.recreate) {
+    await recreateCollection(collection);
+  } else {
+    await ensureCollection(collection);
+  }
   const embedder = getEmbedder();
   const vectors = await embedder.embed(allChunks.map((c) => c.text));
   await upsertChunks(collection, allChunks, vectors);
