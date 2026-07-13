@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>peckworks-codebase-rag · ask a codebase, get cited answers</title>
+<meta name="description" content="A code-aware RAG engine: index any repository, ask questions in plain English, get answers with path:line citations or an honest refusal. This page is the guided tour: the pipeline, the design forks, the settings, the embedding-model swap, and the measured results." />
+<meta property="og:title" content="peckworks-codebase-rag · ask a codebase, get cited answers" />
+<meta property="og:description" content="Retrieval measured 11% to 61% on a hand-validated golden set. The pipeline, the choices, the knobs, the model swap, and the known limits, all in one tour." />
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%230D1015"/><rect x="0.5" y="0.5" width="31" height="31" rx="6.5" fill="none" stroke="%232C3442"/><circle cx="16" cy="17" r="10.5" fill="none" stroke="%232C3442" stroke-width="1.4"/><line x1="16" y1="17" x2="16" y2="6.5" stroke="%23FF8A3D" stroke-width="1.5"/><line x1="16" y1="17" x2="24.5" y2="11" stroke="%232BE0CE" stroke-width="1.3"/><line x1="16" y1="17" x2="8" y2="10.5" stroke="%232BE0CE" stroke-width="1.3"/><line x1="16" y1="17" x2="23" y2="24" stroke="%23FF5C82" stroke-width="1.3"/><circle cx="16" cy="6.5" r="2.6" fill="%23FF8A3D"/><circle cx="24.5" cy="11" r="2.2" fill="%232BE0CE"/><circle cx="8" cy="10.5" r="2.2" fill="%232BE0CE"/><circle cx="23" cy="24" r="2.2" fill="%23FF5C82"/></svg>'>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D1015; --ink-2:#151A21; --ink-3:#1C2330;
+    --line:#2C3442; --line-soft:#212834;
+    --text:#EAEDF3; --muted:#94A0B2; --muted-2:#5F6A7B;
+    --signal:#FF8A3D; --have:#2BE0CE; --partial:#F5C13D;
+    --adjacent:#6E9BFF; --violet:#B98CFF; --offer:#2EE36E; --deny:#FF5C82; --gap:#5F6A7B;
+    --maxw:1000px; --r:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,sans-serif; line-height:1.55; -webkit-font-smoothing:antialiased;
+    background-image:linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size:46px 46px, 46px 46px; background-position:center top;
+  }
+  body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(120% 80% at 50% -10%, transparent 30%, var(--ink) 78%);}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px; position:relative; z-index:1;}
+  a{color:inherit;}
+  ::selection{background:var(--signal); color:#1a1205;}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:var(--muted);}
+
+  .topbar{position:sticky; top:0; z-index:30; backdrop-filter:blur(8px); background:rgba(13,16,21,.85); border-bottom:1px solid var(--line);}
+  .topbar .wrap{display:flex; align-items:center; gap:18px; min-height:54px; padding-top:6px; padding-bottom:6px;}
+  .brand{font-family:"Space Grotesk",sans-serif; font-weight:600; letter-spacing:-.01em; white-space:nowrap;}
+  .brand .dot{color:var(--signal);}
+  .navcodes{display:flex; gap:4px; flex-wrap:wrap; margin-left:auto; overflow:auto;}
+  .navcodes a{font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted); text-decoration:none; padding:4px 7px; border:1px solid transparent; border-radius:7px;}
+  .navcodes a:hover{color:var(--text); border-color:var(--line); background:var(--ink-2);}
+  .navcodes a{transition:color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, text-shadow .18s ease;}
+  .navcodes a.active{color:var(--signal); border-color:var(--signal); background:rgba(255,138,61,.12); box-shadow:0 0 12px -3px rgba(255,138,61,.6); text-shadow:0 0 9px rgba(255,138,61,.45);}
+  .ghlink{display:inline-flex; align-items:center; gap:7px; text-decoration:none; flex:none;
+    font-family:"IBM Plex Mono",monospace; font-size:.72rem; font-weight:600; letter-spacing:.02em;
+    color:var(--muted); padding:5px 11px 5px 9px; border:1px solid var(--line); border-radius:20px;
+    background:var(--ink-2); transition:color .14s, border-color .14s, background .14s; white-space:nowrap;}
+  .ghlink:hover{color:var(--text); border-color:var(--signal); background:var(--ink-3);}
+  .ghlink svg{width:14px; height:14px; color:var(--signal); flex:none;}
+  @media(max-width:560px){.ghlink span{display:none;}}
+
+  .hero{padding:60px 0 24px;}
+  .hero .eyebrow{margin-bottom:18px;}
+  .thesis{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:clamp(2rem,5vw,3.1rem); line-height:1.05; letter-spacing:-.025em; margin:0 0 12px; max-width:20ch;}
+  .thesis .hl{color:var(--signal);}
+  .lede{max-width:64ch; color:#C7CEDA; font-size:1.06rem;}
+  .lede strong{color:var(--text); font-weight:600;}
+  .readmeta{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted-2); margin-top:18px; display:flex; gap:16px; flex-wrap:wrap;}
+  .readmeta b{color:var(--have);}
+
+  section{padding:26px 0; border-top:1px solid var(--line-soft);}
+  h2.sh{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:1.6rem; letter-spacing:-.02em; margin:0 0 4px; display:flex; align-items:baseline; gap:11px;}
+  h2.sh .n{font-family:"IBM Plex Mono",monospace; font-size:.9rem; color:var(--signal); font-weight:600;}
+  .sub{color:var(--muted); max-width:70ch; margin:0 0 8px; font-size:.98rem;}
+
+  .teach{border:1px solid var(--line); border-left:4px solid var(--signal); border-radius:14px; background:var(--ink-2); padding:22px 24px; margin-top:18px;}
+  .teach.cyan{border-left-color:var(--have);} .teach.violet{border-left-color:var(--violet);} .teach.amber{border-left-color:var(--partial);} .teach.pink{border-left-color:var(--deny);}
+  .teach .kicker{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--signal); margin:0 0 13px; display:flex; align-items:center; gap:9px;}
+  .teach.cyan .kicker{color:var(--have);} .teach.violet .kicker{color:var(--violet);} .teach.amber .kicker{color:var(--partial);} .teach.pink .kicker{color:var(--deny);}
+  .teach .kicker svg{width:19px; height:19px; flex:none;}
+  .teach h3.tt{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:1.32rem; letter-spacing:-.01em; margin:0 0 10px; color:#fff;}
+  .teach p{margin:0 0 13px; color:#C7CEDA; font-size:.96rem; max-width:86ch;}
+  .teach p strong{color:#fff; font-weight:600;}
+  .teach p.lead{color:#EAEDF3; font-size:1.05rem;}
+  .teach .mono{font-family:"IBM Plex Mono",monospace; color:var(--have);}
+  .teach ul{margin:0 0 13px; padding-left:0; list-style:none;}
+  .teach ul li{position:relative; padding-left:22px; margin-bottom:7px; font-size:.93rem; color:#C7CEDA;}
+  .teach ul li::before{content:"▸"; position:absolute; left:4px; color:var(--signal);}
+  .teach.cyan ul li::before{color:var(--have);} .teach.violet ul li::before{color:var(--violet);} .teach.amber ul li::before{color:var(--partial);} .teach.pink ul li::before{color:var(--deny);}
+  .fig{margin:6px 0 16px; border:1px solid var(--line); border-radius:12px; background:var(--ink);
+       background-image:radial-gradient(circle at 1px 1px, var(--line-soft) 1px, transparent 0); background-size:22px 22px; padding:18px; overflow:auto;}
+  .fig svg{display:block; margin:0 auto; max-width:100%; height:auto;}
+  .figcap{font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted); text-align:center; margin-top:11px; letter-spacing:.05em; max-width:84ch; margin-left:auto; margin-right:auto;}
+  .figcap b{color:var(--signal);}
+  .analogy{border-left:3px solid var(--partial); background:#14110a; border-radius:0 10px 10px 0; padding:11px 16px; margin:0 0 15px; font-size:.94rem; color:#E7DCC4;}
+  .analogy b{color:var(--partial); font-weight:600;}
+  .tgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:0 0 15px;}
+  .tcard{background:var(--ink); border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+  .tcard .th{font-family:"IBM Plex Mono",monospace; font-size:.67rem; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; color:var(--signal);}
+  .tcard.c .th{color:var(--have);} .tcard.a .th{color:var(--partial);} .tcard.v .th{color:var(--violet);} .tcard.d .th{color:var(--deny);}
+  .tcard .td{font-size:.85rem; color:#C7CEDA;}
+  .tcard .big{font-family:"Space Grotesk",sans-serif; font-weight:700; font-size:1.7rem; letter-spacing:-.02em; color:#fff; line-height:1.1; margin-bottom:4px;}
+  .qa{border:1px solid var(--line); border-radius:9px; padding:10px 14px; background:var(--ink); font-size:.88rem; color:#C7CEDA; margin-bottom:8px;}
+  .qa .q{color:var(--signal); font-family:"IBM Plex Mono",monospace; font-size:.8em; font-weight:600; letter-spacing:.04em; margin-right:7px;}
+  .qa b{color:#fff;}
+
+  pre{background:#0a0d12; border:1px solid var(--line); border-left:3px solid var(--have); border-radius:10px; padding:14px 16px; overflow:auto; margin:0 0 14px;}
+  pre code{font-family:"IBM Plex Mono",monospace; font-size:.82rem; color:#C7CEDA; line-height:1.5;}
+  code.inl{font-family:"IBM Plex Mono",monospace; font-size:.85em; color:var(--have); background:#0a0d12; padding:1px 5px; border-radius:5px;}
+  .ground{border:1px solid var(--line); border-radius:12px; background:linear-gradient(180deg,#102a28 0,var(--ink-2) 120px); padding:18px 20px; margin-top:16px;}
+  .ground .gh{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--have); margin-bottom:10px;}
+  .ground p{font-size:.93rem; color:#C7CEDA; margin:0 0 9px;}
+  footer{padding:40px 0 60px; border-top:1px solid var(--line); margin-top:20px;}
+  .meta-line{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted-2); text-align:center; max-width:90ch; margin:0 auto;}
+
+  table.evtbl{width:100%; border-collapse:collapse; margin:0 0 13px; font-size:.88rem;}
+  .evtbl th{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-align:left; padding:6px 10px; border-bottom:1px solid var(--line);}
+  .evtbl td{border-top:1px solid var(--line-soft); padding:8px 10px; vertical-align:top; color:#C7CEDA;}
+  .evtbl td.k{font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--have); white-space:nowrap;}
+  .evtbl td.v{font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--partial); white-space:nowrap;}
+  .evtbl tr.probe td.k{color:var(--deny);}
+
+  @media(max-width:720px){
+    .topbar .wrap{flex-wrap:wrap; gap:8px 12px;}
+    .navcodes{margin-left:0; width:100%; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px;}
+    table.evtbl{display:block; overflow-x:auto;}
+  }
+
+  #vecglobe{display:block;margin:0 auto;cursor:grab;touch-action:none;max-width:100%;}
+  #vecglobe.grabbing{cursor:grabbing;}
+  .vecinfo{font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:#94A0B2;text-align:center;margin-top:9px;min-height:1.3em;}
+  .vecinfo b{color:#FF8A3D;}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <a class="ghlink" href="https://github.com/srfinch17/peckworks-codebase-rag" title="View the source on GitHub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span>GitHub</span></a>
+  <span class="brand">peckworks <span class="dot">/</span> codebase-rag</span>
+  <nav class="navcodes">
+    <a href="#what">01·what</a>
+    <a href="#globe">02·globe</a>
+    <a href="#measured">03·measured</a>
+    <a href="#choices">04·choices</a>
+    <a href="#knobs">05·knobs</a>
+    <a href="#swap">06·swap</a>
+    <a href="#eval">07·eval</a>
+    <a href="#run">08·run</a>
+    <a href="#next">09·next</a>
+  </nav>
+</div></div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">what is going on in this repo · a code-aware RAG engine · TypeScript + Qdrant + local embeddings</div>
+    <h1 class="thesis">Ask a codebase a question. Get a cited answer, <span class="hl">or an honest refusal.</span></h1>
+    <p class="lede">This repository is a <strong>RAG engine for source code</strong> (RAG: Retrieval-Augmented Generation, fetching the relevant passages from a corpus and handing them to a language model so it answers from evidence instead of memory). Point it at any repo and it indexes the code and docs; then you ask questions in plain English and get answers with <strong>path-and-line citations</strong> you can verify, or a refusal when the answer is not actually in the code. This page is the tour: how the pipeline works, why the design is what it is, what every setting does, and the part most demos skip, <strong>what happened when retrieval quality was actually measured</strong>. Short version: the first measurement was terrible, the eval diagnosed why, and one targeted change took the right-file rate from 11% to 61%.</p>
+    <div class="readmeta">
+      <span>📈 measured: <b>right-file rate 11% → 61%</b></span>
+      <span>🧪 eval: <b>free · offline · deterministic</b></span>
+      <span>📚 receipts: <b>docs/DECISIONS.md · eval/results/</b></span>
+    </div>
+  </header>
+
+  <!-- ================= 01 WHAT ================= -->
+  <section id="what">
+    <h2 class="sh"><span class="n">01</span> What this is, in one screen</h2>
+    <p class="sub">Two flows sharing one database: build the index once, then answer every question against it.</p>
+
+    <div class="teach">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>The problem it solves</div>
+      <h3 class="tt">A language model answering from memory is a closed book</h3>
+      <p class="lead">Ask a model cold, "how does this repo avoid corrupting files when it writes?", and it has never seen the repo. It will either say it does not know or, worse, produce a fluent, plausible, wrong answer. RAG turns the closed-book exam into an open-book one: <strong>before the model answers, the engine fetches the most relevant chunks of the actual code and says "answer only from these, and cite them."</strong></p>
+      <div class="analogy"><b>Analogy:</b> a brilliant new hire who has read the whole internet but has never seen your filing cabinet. Don't make them guess from memory: hand them the right folder before they answer. This engine is the folder-fetching.</div>
+      <p>One engine serves many repositories: each indexed repo gets its own isolated collection in the vector store, so one codebase never bleeds into another's answers.</p>
+    </div>
+
+    <div class="fig">
+      <svg viewBox="0 0 940 388" role="img" aria-label="The pipeline. Top lane, ingest once: a repository is walked for source and doc files, split into chunks, each chunk is embedded into a vector, vectors are stored in Qdrant. Bottom lane, per question: the question is embedded with the same model, the store is searched for the top 8 most similar chunks, those chunks are pasted into the prompt, and the model generates a cited answer; a refusal guardrail returns I don't know if the best score is below the floor.">
+        <defs>
+          <marker id="rag-ar" markerWidth="9" markerHeight="9" refX="5" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#FF8A3D"/></marker>
+          <marker id="rag-art" markerWidth="9" markerHeight="9" refX="5" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#2BE0CE"/></marker>
+        </defs>
+        <text x="20" y="28" font-family="'IBM Plex Mono',monospace" font-size="12.5" font-weight="700" fill="#2BE0CE">INGEST · once per repo (npm run ingest)</text>
+        <text x="20" y="232" font-family="'IBM Plex Mono',monospace" font-size="12.5" font-weight="700" fill="#FF8A3D">QUERY · every question (npm run ask / web UI)</text>
+
+        <rect x="20" y="46" width="104" height="52" rx="10" fill="#151A21" stroke="#2BE0CE"/>
+        <text x="72" y="68" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="#2BE0CE">WALK</text>
+        <text x="72" y="85" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">walk.ts</text>
+
+        <line x1="124" y1="72" x2="160" y2="72" stroke="#2BE0CE" stroke-width="2" marker-end="url(#rag-art)"/>
+        <rect x="160" y="46" width="104" height="52" rx="10" fill="#151A21" stroke="#2BE0CE"/>
+        <text x="212" y="68" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="#2BE0CE">CHUNK</text>
+        <text x="212" y="85" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">chunkCode.ts</text>
+
+        <line x1="264" y1="72" x2="300" y2="72" stroke="#2BE0CE" stroke-width="2" marker-end="url(#rag-art)"/>
+        <rect x="300" y="46" width="104" height="52" rx="10" fill="#151A21" stroke="#2BE0CE"/>
+        <text x="352" y="68" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="#2BE0CE">EMBED</text>
+        <text x="352" y="85" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">embed.ts · local</text>
+
+        <line x1="404" y1="72" x2="452" y2="120" stroke="#2BE0CE" stroke-width="2" marker-end="url(#rag-art)"/>
+
+        <ellipse cx="540" cy="150" rx="74" ry="16" fill="#102a28" stroke="#2BE0CE" stroke-width="1.6"/>
+        <path d="M466 150 V214 A74 16 0 0 0 614 214 V150" fill="#102a28" stroke="#2BE0CE" stroke-width="1.6"/>
+        <ellipse cx="540" cy="150" rx="74" ry="16" fill="#0D1015" stroke="#2BE0CE" stroke-width="1.6"/>
+        <text x="540" y="148" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12.5" font-weight="700" fill="#2BE0CE">QDRANT</text>
+        <text x="540" y="178" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">one collection</text>
+        <text x="540" y="193" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">per repo · store.ts</text>
+
+        <rect x="20" y="250" width="104" height="52" rx="10" fill="#151A21" stroke="#FF8A3D"/>
+        <text x="72" y="272" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="#FF8A3D">QUESTION</text>
+        <text x="72" y="289" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">plain English</text>
+
+        <line x1="124" y1="276" x2="160" y2="276" stroke="#FF8A3D" stroke-width="2" marker-end="url(#rag-ar)"/>
+        <rect x="160" y="250" width="104" height="52" rx="10" fill="#151A21" stroke="#FF8A3D"/>
+        <text x="212" y="272" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="#FF8A3D">EMBED Q</text>
+        <text x="212" y="289" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">same model</text>
+
+        <line x1="264" y1="276" x2="466" y2="210" stroke="#FF8A3D" stroke-width="2" marker-end="url(#rag-ar)"/>
+        <text x="320" y="272" font-family="'IBM Plex Mono',monospace" font-size="10.5" fill="#FF8A3D">search (top-8) · retrieve.ts</text>
+        <line x1="614" y1="200" x2="668" y2="276" stroke="#FF8A3D" stroke-width="2" marker-end="url(#rag-ar)"/>
+
+        <rect x="668" y="250" width="110" height="52" rx="10" fill="#17120a" stroke="#FF8A3D"/>
+        <text x="723" y="272" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="#FF8A3D">AUGMENT</text>
+        <text x="723" y="289" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">chunks→prompt</text>
+
+        <line x1="778" y1="276" x2="814" y2="276" stroke="#FF8A3D" stroke-width="2" marker-end="url(#rag-ar)"/>
+        <rect x="814" y="250" width="108" height="52" rx="10" fill="#17120a" stroke="#FF8A3D" stroke-width="1.8"/>
+        <text x="868" y="272" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="700" fill="#FF8A3D">ANSWER</text>
+        <text x="868" y="289" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">answer.ts · cited</text>
+
+        <rect x="668" y="324" width="254" height="40" rx="9" fill="#0D1015" stroke="#FF5C82" stroke-dasharray="4 3"/>
+        <text x="795" y="343" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10.5" font-weight="600" fill="#FF5C82">GUARDRAIL: nothing above minScore?</text>
+        <text x="795" y="357" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="#94A0B2">→ refuse / "I don't know" instead of guessing</text>
+      </svg>
+      <p class="figcap">The whole system on one screen. <b>Top lane runs once</b> per repository; <b>bottom lane runs on every question</b>. Qdrant, the vector database, is the shared hinge.</p>
+    </div>
+
+    <div class="teach cyan">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Every box is one small file</div>
+      <p>Each stage is an isolated module under <span class="mono">src/</span>, deliberately short, with the seams between them explicit. The entry points are thin on purpose: the CLI (<span class="mono">cli/index.ts</span>), the local web UI (<span class="mono">src/web/</span>), and the eval harness (<span class="mono">src/eval/</span>) are three front doors over the same pipeline functions, so adding a fourth (the planned one is an MCP server: Model Context Protocol, the standard plug that lets tools like Claude Desktop query the index directly) touches no pipeline code.</p>
+      <ul>
+        <li><strong>WALK</strong> → <span class="mono">walk.ts</span>: walks the repo, skipping build output and simple <span class="mono">.gitignore</span> patterns; ingest then classifies each file and keeps only known code/doc extensions (which excludes binaries for free).</li>
+        <li><strong>CHUNK</strong> → <span class="mono">chunkCode.ts</span> (code, line windows) and <span class="mono">chunk.ts</span> (prose, character windows). Every chunk carries its <span class="mono">path</span> and line range, which is what makes <span class="mono">path:line</span> citations possible.</li>
+        <li><strong>EMBED</strong> → <span class="mono">embed.ts</span>: a local model turns each chunk into a vector (a fixed-length list of numbers encoding its meaning). Runs offline, no API key. The model sits behind an <span class="mono">Embedder</span> interface, and that seam is the star of section 06.</li>
+        <li><strong>STORE / RETRIEVE</strong> → <span class="mono">store.ts</span> / <span class="mono">retrieve.ts</span>: Qdrant holds the vectors; a question is embedded the same way and the nearest chunks by cosine similarity come back.</li>
+        <li><strong>ANSWER</strong> → <span class="mono">answer.ts</span>: Claude answers strictly from the retrieved chunks, the response is schema-validated, and a refusal guardrail fires when retrieval is too weak.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= 02 GLOBE ================= -->
+  <section id="globe">
+    <h2 class="sh"><span class="n">02</span> The space the chunks live in</h2>
+    <p class="sub">Every vector is scaled to length 1, so every chunk lives on the surface of one sphere. Meaning becomes direction. Spin it.</p>
+
+    <div class="teach violet">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Interlude · what cosine similarity actually measures</div>
+      <h3 class="tt">Normalization turns meaning into direction</h3>
+      <p class="lead">The embedder scales every vector to <strong>length 1</strong> before it is stored. That has a picture worth holding: if every arrow out of the origin has the same length, then every chunk sits <strong>on the surface of the same unit sphere</strong>, and the only thing left to differ is which way each arrow points. Cosine similarity, the score Qdrant ranks by, is nothing more exotic than a readout of the from-the-center angle between two arrows (the score is the cosine of that angle): same direction means score near 1, unrelated means near 0.</p>
+      <div class="analogy"><b>Analogy:</b> cities on a globe. Every city sits the same distance from the center of the Earth; what makes London and Paris "close" is the small angle between them as seen from the core. Chunks are cities, a question is one more city dropped onto the same globe, and retrieval is "list the nearest cities."</div>
+
+      <div class="fig">
+        <canvas id="vecglobe" width="880" height="430" role="img" aria-label="Interactive 3-D globe of normalized vectors. Arrows radiate from the origin to points on a unit sphere: an orange shared reference axis standing in for each question, three teal points for answerable golden-set questions at their measured top-chunk cosines 0.85, 0.77 and 0.61, and two pink points for should-refuse probe questions at measured cosines 0.69 and 0.63, which land inside the teal band. Each point's angle to the axis is real; its position around the axis is arbitrary. Dragging rotates the sphere, scrolling zooms, and clicking a point draws the angle to the axis and reports its cosine."></canvas>
+        <div class="vecinfo" id="vecinfo">drag to spin · scroll to zoom · click a point to measure its angle to the axis</div>
+        <p class="figcap">Real measured cosines, staged layout. Each dot is the <b>top-scoring retrieved chunk for one golden-set question</b> against clipmeta (a C# MP4-metadata tool, the first repo this engine indexed), from the 2026-07-10 eval run committed at eval/results/clipmeta-jina.json. Each dot's angle to the orange axis is the true angle its measured cosine dictates, with the five questions aligned to that one shared axis so the angles can be compared; the spread <em>around</em> the axis is arbitrary, chosen for label spacing. Teal dots are answerable questions; <b>pink dots are should-refuse probes</b>, questions the codebase cannot answer. Notice where the pink dots land: inside the teal band. That overlap is the finding that shaped the refusal design (section 05).</p>
+      </div>
+
+      <ul>
+        <li><strong>What to notice while you spin:</strong> everything huddles within about 52 degrees of the axis: the lowest top score on this run was 0.61 (acos of 0.61 is about 52 degrees), and no question, answerable or not, came near the 0.57 refusal floor. An unanswerable question still retrieves moderately similar real code, which is exactly why a score threshold alone cannot make the refusal call.</li>
+        <li><strong>Cosine on the sphere gets even simpler:</strong> for length-1 vectors the cosine is the plain element-by-element multiply-and-sum of the two vectors (the dot product), no division needed. Qdrant's <span class="mono">distance: Cosine</span> setting means "rank by closeness on this globe."</li>
+        <li><strong>The real space has 768 dimensions</strong>, one per number in each vector, where no picture fits. The sphere is a faithful 3-D shadow: these five stand-in points sit at the true angles their measured cosines dictate.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= 03 MEASURED ================= -->
+  <section id="measured">
+    <h2 class="sh"><span class="n">03</span> The run, as measured</h2>
+    <p class="sub">The part most RAG demos skip: a baseline, a diagnosis, a fix, and numbers for all three. The target corpus: clipmeta, a C# MP4-metadata tagging tool, the first repository this engine indexed. Every figure here comes from the eval output and decision log committed in this repo.</p>
+
+    <div class="tgrid">
+      <div class="tcard d"><div class="th">Baseline · text-tuned model</div><div class="big">11.1%</div><div class="td">hit-rate@8 (2 of 18 questions found their expected file in the top 8 chunks) · MRR 0.069 (MRR: mean reciprocal rank, how high the right file ranked; both defined fully in section 07). The starting point, measured 2026-07-09.</div></div>
+      <div class="tcard a"><div class="th">Diagnostic probe · code-only</div><div class="big">61.1%</div><div class="td">Same model, retrieval restricted to code chunks. The jump proved code was reachable, just outranked by prose.</div></div>
+      <div class="tcard c"><div class="th">Shipped · code-tuned model</div><div class="big">61.1%</div><div class="td">hit-rate@8 (11 of 18) · MRR 0.425, no restriction. The swap hit the ceiling the probe predicted.</div></div>
+      <div class="tcard"><div class="th">MRR gain</div><div class="big">6.1×</div><div class="td">Mean reciprocal rank 0.069 → 0.425: the right file now tends to rank first or second, not seventh.</div></div>
+    </div>
+
+    <div class="fig">
+      <svg viewBox="0 0 940 290" role="img" aria-label="Timeline of the measured run, six milestones along a line. One: build the engine, five modules plus web UI and CI. Two: index clipmeta, 247 files into 2,588 chunks, and hand-build the golden set of 18 questions plus 4 refusal probes. Three: baseline measures 11 percent hit rate, diagnosed as prose drowning code. Four: refusal floor raised to 0.57 and the score bands found to overlap, so the threshold becomes a safety net. Five: embedding model swapped to code-tuned jina, 768 wide, free and local, and a 32 megabyte bug found and fixed. Six, highlighted: result 61 percent hit rate, MRR 0.43, matching the code-only ceiling. A dashed box at the end lists what comes next: semantic judge, tree-sitter chunks, MCP server.">
+        <defs><marker id="tl-ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#6E9BFF"/></marker></defs>
+        <text x="20" y="28" font-family="'IBM Plex Mono',monospace" font-size="12.5" font-weight="700" fill="#94A0B2">THE RUN, AS MEASURED · 2026-07 · every number from the golden-set eval</text>
+        <line x1="40" y1="185" x2="788" y2="185" stroke="#2C3442" stroke-width="2"/>
+        <line x1="788" y1="185" x2="804" y2="185" stroke="#6E9BFF" stroke-width="2" marker-end="url(#tl-ar)"/>
+        <circle cx="80" cy="185" r="7" fill="#2BE0CE"/>
+        <line x1="80" y1="158" x2="80" y2="176" stroke="#2C3442" stroke-width="1"/>
+        <text x="80" y="118" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11.5" font-weight="700" fill="#2BE0CE">ENGINE</text>
+        <text x="80" y="134" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">5 modules · web UI · CI</text>
+        <text x="80" y="150" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">TypeScript + Qdrant</text>
+        <circle cx="212" cy="185" r="7" fill="#2BE0CE"/>
+        <line x1="212" y1="194" x2="212" y2="212" stroke="#2C3442" stroke-width="1"/>
+        <text x="212" y="228" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11.5" font-weight="700" fill="#2BE0CE">INDEX + GOLDEN SET</text>
+        <text x="212" y="244" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">247 files → 2,588 chunks</text>
+        <text x="212" y="260" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">18 questions + 4 probes</text>
+        <circle cx="344" cy="185" r="7" fill="#FF5C82"/>
+        <line x1="344" y1="158" x2="344" y2="176" stroke="#2C3442" stroke-width="1"/>
+        <text x="344" y="118" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11.5" font-weight="700" fill="#FF5C82">BASELINE: 11%</text>
+        <text x="344" y="134" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">hit@8 2/18 · MRR 0.07</text>
+        <text x="344" y="150" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">prose drowns code</text>
+        <circle cx="476" cy="185" r="7" fill="#F5C13D"/>
+        <line x1="476" y1="194" x2="476" y2="212" stroke="#2C3442" stroke-width="1"/>
+        <text x="476" y="228" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11.5" font-weight="700" fill="#F5C13D">FLOOR 0.25 → 0.57</text>
+        <text x="476" y="244" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">refuse band overlaps</text>
+        <text x="476" y="260" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">threshold = safety net</text>
+        <circle cx="608" cy="185" r="7" fill="#B98CFF"/>
+        <line x1="608" y1="158" x2="608" y2="176" stroke="#2C3442" stroke-width="1"/>
+        <text x="608" y="118" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11.5" font-weight="700" fill="#B98CFF">SWAP: jina-code, 768</text>
+        <text x="608" y="134" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">free + local beats paid</text>
+        <text x="608" y="150" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">and a 32 MB bug fixed</text>
+        <circle cx="740" cy="185" r="9" fill="#FF8A3D"/>
+        <line x1="740" y1="196" x2="740" y2="212" stroke="#2C3442" stroke-width="1"/>
+        <text x="740" y="228" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="700" fill="#FF8A3D">RESULT: 61%</text>
+        <text x="740" y="244" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#EAEDF3">hit@8 11/18 · MRR 0.43</text>
+        <text x="740" y="260" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">matches code-only ceiling</text>
+        <rect x="812" y="140" width="116" height="92" rx="10" fill="#0D1015" stroke="#6E9BFF" stroke-dasharray="5 4"/>
+        <text x="870" y="162" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11.5" font-weight="700" fill="#6E9BFF">NEXT</text>
+        <text x="870" y="181" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">semantic judge</text>
+        <text x="870" y="197" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">tree-sitter chunks</text>
+        <text x="870" y="213" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10.5" fill="#94A0B2">MCP server</text>
+      </svg>
+      <p class="figcap">The journey on one line. The pink node is the day the eval earned its keep: without a measured 11%, "retrieval feels bad" is a vibe; with it, the diagnosis, the fix, and the <b>5.5x hit-rate gain</b> are all provable. (n = 18 questions: one flip moves hit-rate 5.6 points, so read the percentages as directional, not decimal-tight.)</p>
+    </div>
+
+    <div class="teach">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>What the 11% turned out to mean</div>
+      <p class="lead">The first eval run found the expected file for only 2 of 18 questions. The diagnosis was manual and cheap: <strong>dump the top-8 retrieved chunks for every miss and read them.</strong> They were almost all markdown, READMEs and design docs <em>describing</em> the code, outranking the code itself. The first embedding model (all-MiniLM-L6-v2) is tuned on ordinary English prose, so an English question naturally lands nearest other English prose.</p>
+      <p>A probe made the diagnosis testable: restrict retrieval to code chunks only, re-run the eval, and hit-rate jumped to 61.1%. So the code was always reachable, just outranked. That number became a prediction: a <strong>code-tuned</strong> embedding model, trained on docstring-to-code pairs so English questions map near source code, should reach the same 61% with no restriction at all. It did (section 06). One wrinkle, visible in the per-item results: the probe and the swap agree at the rate level but share only 7 of their 11 hits; on an 18-question set, individual questions flip at thin margins.</p>
+    </div>
+  </section>
+
+  <!-- ================= 04 CHOICES ================= -->
+  <section id="choices">
+    <h2 class="sh"><span class="n">04</span> The choices, and the roads not taken</h2>
+    <p class="sub">Each of these is a fork recorded in docs/DECISIONS.md when it was taken: what was chosen, why, and what was considered and rejected.</p>
+
+    <div class="qa"><span class="q">FORK</span> <b>One generic tool with one collection per repo, not a repo per codebase.</b> "Per-codebase" describes the data (a Qdrant collection), not the code. N copy-pasted RAG repos would drift apart and defeat the point of factoring out the common part. Rejected: <span class="mono">rag-for-project-A</span>, <span class="mono">rag-for-project-B</span>, the first instinct.</div>
+    <div class="qa"><span class="q">FORK</span> <b>TypeScript, reusing a proven document-RAG pipeline, not a rewrite.</b> The pipeline was lifted from an earlier document-RAG project and extended with a code-aware front end. Rejected: a C#/.NET rewrite (discards working code for no retrieval benefit) and growing the original project in place (blurs its single-purpose story).</div>
+    <div class="qa"><span class="q">FORK</span> <b>Qdrant as the vector store.</b> It was already running and fits the job: payload filtering, per-collection isolation, a local Docker container. Alternatives worth naming, not adopting: pgvector on Postgres, SQL Server 2025's native VECTOR type. Switching stores would be churn with no goal.</div>
+    <div class="qa"><span class="q">FORK</span> <b>Line-window chunking first, symbol-aware later, with the gain measured.</b> Sixty-line windows with 15 lines of overlap are simple, language-agnostic, and give every citation a real <span class="mono">path:line</span>. The known weakness (a window can split a long function mid-body) is deliberate: it is the baseline that a tree-sitter upgrade must beat by a measured margin, not a guess.</div>
+    <div class="qa"><span class="q">FORK</span> <b>A free, local, code-tuned embedder over the paid cloud one the roadmap named.</b> When the baseline demanded a code-tuned model, the candidates were voyage-code-3 (paid, cloud, needs a key) and jina-embeddings-v2-base-code (free, Apache-2.0, runs locally in the same pipeline). Cost had to be zero and the indexed repos are public, which removed the only reasons to prefer cloud. Free and local won, and section 06 shows it delivered.</div>
+    <div class="qa"><span class="q">FORK</span> <b>One model embeds both code and docs; a two-model design is parked.</b> Cosine distances are only meaningful inside one model's vector space, so a single collection must use a single model. The code-tuned model handles English acceptably, and a dual-index, score-fusion design is more machinery than the gain justifies until prose-answered questions measurably regress.</div>
+    <div class="qa"><span class="q">FORK</span> <b>Grade retrieval, not answer prose, and never call the model in the eval.</b> The question the eval answers is "does the right code come back," which is what chunking and embedding changes move. Keeping the model out makes a run free, offline, and deterministic: the same input gives the same number every time, which is what makes a baseline trustworthy. Rejected: a full-pipeline eval that grades generated prose (paid, nondeterministic, and no extra signal for the variable under test).</div>
+  </section>
+
+  <!-- ================= 05 KNOBS ================= -->
+  <section id="knobs">
+    <h2 class="sh"><span class="n">05</span> The settings, knob by knob</h2>
+    <p class="sub">Every tunable lives in one file, src/config.ts, because each one is a tradeoff someone will eventually ask about.</p>
+
+    <table class="evtbl">
+      <tr><th>Knob</th><th>Value</th><th>Why this value</th></tr>
+      <tr><td class="k">textChunkSize / overlap</td><td class="v">800 / 150 chars</td><td>Prose chunks big enough to hold one coherent idea; the overlap keeps a sentence split across a boundary answerable.</td></tr>
+      <tr><td class="k">codeChunkLines / overlap</td><td class="v">60 / 15 lines</td><td>Lines are code's natural unit and give citations a real path:line. Sixty lines keeps most short functions whole.</td></tr>
+      <tr><td class="k">localModelId</td><td class="v">jina-embeddings-v2-base-code</td><td>Code-tuned: trained on ~150M coding QA and docstring-to-code pairs, so English questions rank code above the prose describing it. Swapped in after the measured 11% baseline (section 06).</td></tr>
+      <tr><td class="k">embeddingDim</td><td class="v">768</td><td>Not a choice: the model's fixed output width. The previous model emitted 384. Changing models means recreating the collection and re-ingesting, hence the --recreate flag.</td></tr>
+      <tr><td class="k">topK</td><td class="v">8</td><td>How many chunks retrieval returns. Higher than a prose-only setup because a code answer often needs neighboring chunks for context.</td></tr>
+      <tr><td class="k">minScore</td><td class="v">0.57</td><td>The refusal floor, and the most instructive story on this page: see below.</td></tr>
+      <tr><td class="k">answerModel</td><td class="v">claude-opus-4-8</td><td>The answer step. The only stage that calls a cloud API; everything before it runs locally.</td></tr>
+    </table>
+
+    <div class="teach amber">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>The minScore story · a threshold cannot do this job</div>
+      <h3 class="tt">Why the refusal floor is a safety net, not a fake-question filter</h3>
+      <p class="lead">The idea was simple: a question the codebase cannot answer should score low, so refuse below a floor. The measurement said otherwise. <strong>Answerable and unanswerable questions score in overlapping bands</strong> (on the current model: answerable 0.61 to 0.85, should-refuse probes 0.63 to 0.69), because an unanswerable question still retrieves moderately similar real code. You saw this on the globe in section 02: the pink dots sit inside the teal band.</p>
+      <ul>
+        <li><strong>The tuning was a measured tradeoff, not a dial-twiddle.</strong> On the first model, the floor was raised 0.25 → 0.57 after reading per-question scores: 0.57 caught 2 of the 4 probes at the cost of one wrongly-refused real question. A stricter 0.65 was tested and rejected: it caught all 4 probes but wrongly refused 6 of 18 real answers.</li>
+        <li><strong>Then the model swap quietly retired the floor as a fake-filter.</strong> The code-tuned model lifted every score, and the probe band (0.63 to 0.69) settled entirely above the 0.57 floor. At the shipped configuration the threshold layer catches <strong>0 of the 4</strong> probes.</li>
+        <li><strong>What refusal actually rests on now:</strong> the answer model reads the retrieved passages under an "answer only from context, else say you don't know" instruction, which is verified by spot checks but not yet scored by any eval. The floor remains as a safety net against near-empty retrieval. The measurable fix, a semantic judge that asks "do these passages actually answer the question?", is the top item in section 09.</li>
+      </ul>
+      <div class="analogy"><b>Analogy:</b> a metal detector at a door where every visitor, friendly or not, carries roughly the same amount of metal. However you set the sensitivity, you either wave everyone through or frisk everyone. The fix is not a better dial; it is a different question at the door.</div>
+    </div>
+  </section>
+
+  <!-- ================= 06 SWAP ================= -->
+  <section id="swap">
+    <h2 class="sh"><span class="n">06</span> The model switch, start to finish</h2>
+    <p class="sub">The centerpiece change: symptom, diagnosis, prediction, a one-seam swap, and the measured result. Plus the bug it flushed out.</p>
+
+    <div class="teach cyan">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/></svg>Text-tuned vs code-tuned</div>
+      <h3 class="tt">The old model kept ranking the description above the thing described</h3>
+      <p class="lead">all-MiniLM-L6-v2 is a fine general-purpose embedder, trained on ordinary English. On a codebase that is precisely the problem: an English question lands nearest other English, so READMEs and design docs outrank the source they describe. jina-embeddings-v2-base-code is trained on roughly 150 million coding question-answer and docstring-to-code pairs across 30+ languages, so "how does X write big-endian integers?" maps near the C# that does it, not near the paragraph about it.</p>
+      <ul>
+        <li><strong>The swap was two config values, not a refactor.</strong> Every caller talks to an <span class="mono">Embedder</span> interface; no pipeline code knows which model runs. Changing <span class="mono">localModelId</span> and <span class="mono">embeddingDim</span> (384 → 768), then re-ingesting into a recreated collection, was the whole change. The seam was designed before it was needed, and this is the day it paid.</li>
+        <li><strong>Why not the paid cloud model:</strong> voyage-code-3 was the roadmap's original pick. Against a zero budget and public target repos, a free, Apache-licensed, locally-running model with the same code-tuning premise removed every reason to pay or to ship code to a third party at index time.</li>
+        <li><strong>Result, against the same golden set:</strong> hit-rate@8 11.1% → 61.1%, MRR 0.069 → 0.425. The gain landed exactly on the code-only probe's ceiling, which is what the diagnosis predicted. Ingest got slower (the model is roughly 7x larger: ~161M parameters vs MiniLM's ~22M), a real cost worth naming.</li>
+      </ul>
+    </div>
+
+    <div class="teach pink">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>The bug the swap flushed out</div>
+      <h3 class="tt">A latent 32 MB wall, found by evidence, fixed at the source</h3>
+      <p>Re-ingesting with the wider vectors died with a bare <span class="mono">Bad Request</span>. The real error was buried in the client error's data: the store sent all 2,588 points in <strong>one request</strong>, and 768-wide vectors pushed the body to ~44 MB against Qdrant's 32 MB request cap. The old 384-wide vectors had serialized to ~24 MB, just under the limit, so the bug had always been there and had simply never been hit. The fix went into the one shared function every ingest routes through: batch the upsert, 128 points per request, so any repo size and any vector width is safe. Both this and the diagnosis trail are written up in <span class="mono">docs/PITFALLS.md</span>.</p>
+    </div>
+  </section>
+
+  <!-- ================= 07 EVAL ================= -->
+  <section id="eval">
+    <h2 class="sh"><span class="n">07</span> How it is graded</h2>
+    <p class="sub">"It demos fine" is not evidence. A hand-validated golden set and a model-free harness turn every tuning change into a measurable experiment.</p>
+
+    <div class="teach amber">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>The golden set and the three numbers</div>
+      <h3 class="tt">22 hand-validated questions, three scores, zero API calls</h3>
+      <p class="lead">The golden set (<span class="mono">eval/clipmeta.golden.json</span>) pairs each question with the source file where the answer actually lives: 18 answerable questions plus <strong>4 should-refuse probes</strong>, questions about things the target codebase genuinely does not do (transcoding, cloud upload, waveform rendering, a SQL database). The expected files were validated by hand against the real source, because grading a tool against its own output is circular and would score high while meaning nothing.</p>
+      <ul>
+        <li><strong>Hit-rate@8</strong> (hit@8 for short): the share of answerable questions whose expected file lands anywhere in the top 8 retrieved chunks. The headline number, because if the right file never reaches the model, no generation can recover.</li>
+        <li><strong>MRR</strong> (Mean Reciprocal Rank): each question scores 1 divided by the position of the first matching chunk (a miss scores 0), averaged across questions. It rewards ranking the answer first over sneaking it in eighth, resolution that a pass/fail hit-rate throws away.</li>
+        <li><strong>Refusal-accuracy:</strong> the share of the 4 probes whose top score falls below the refusal floor, mirroring the exact rule the live guardrail uses. At the shipped configuration this is <strong>0 of 4</strong>, and section 05 explains why that number is reported instead of hidden.</li>
+        <li><strong>Model-free on purpose:</strong> both checks are computed from retrieval output plus the threshold. A run costs nothing, works offline, and gives the same number every time, which is what makes before/after comparisons trustworthy.</li>
+      </ul>
+      <p><strong>One more detail the per-item results add:</strong> the highest-scoring <em>miss</em> (0.796) outscored most hits. A cosine score is confidence in similarity, not correctness; the eval exists precisely because scores alone cannot tell you retrieval is working.</p>
+      <table class="evtbl">
+        <tr><th>Golden-set question (sample)</th><th>Expected file</th></tr>
+        <tr><td>How does clipmeta safely write tag metadata changes into an MP4 file?</td><td class="k">Write/Mp4Writer.cs</td></tr>
+        <tr><td>Where is the MP4 box/atom hierarchy parsed into a tree?</td><td class="k">Mp4/Mp4Parser.cs</td></tr>
+        <tr><td>Where does clipmeta normalize and lowercase a tag value before writing it?</td><td class="k">Write/Normalizer.cs</td></tr>
+        <tr class="probe"><td>Where does clipmeta upload tagged clips to the cloud or an S3 bucket?</td><td class="k">REFUSE (no such code)</td></tr>
+      </table>
+      <p class="lead" style="font-size:.9rem">Known scope limits: every answerable question targets a code file, so "the code-tuned model still embeds the docs acceptably" is an assumption the current set cannot check; and answer <em>prose</em> quality is not graded at all, because a model-graded eval is deliberately outside the free deterministic harness. Both are on the roadmap.</p>
+    </div>
+  </section>
+
+  <!-- ================= 08 RUN ================= -->
+  <section id="run">
+    <h2 class="sh"><span class="n">08</span> Running it</h2>
+    <p class="sub">Node, Docker, and an Anthropic API key in .env. Indexing runs fully offline; only the answer step calls an API.</p>
+
+    <div class="teach cyan">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>The commands</div>
+      <pre><code>docker compose up -d                                  # start Qdrant (the vector store)
+npm install
+npm test                                              # unit tests (also run in CI on every push)
+
+npm run ingest -- --repo myproject --dir ../myproject # walk → chunk → embed → store
+npm run ask   -- --repo myproject "how does X work?"  # cited answer or refusal
+npm run eval  -- --repo clipmeta                      # score retrieval vs the golden set
+npm run web                                           # local web UI at 127.0.0.1:5175</code></pre>
+      <p>The web UI is a second front door over the same pipeline: a repository picker, answers with clickable citations that expand to the retrieved code, a retrieval panel that plots each chunk's score against the refusal floor, and two live-tunable knobs (<span class="mono">topK</span>, <span class="mono">minScore</span>) saved per repository.</p>
+    </div>
+
+    <div class="ground">
+      <div class="gh">▶ Where the code goes, stage by stage</div>
+      <p><strong>Ingest, embedding, storage, and retrieval run entirely on the local machine</strong>: the embedding model is downloaded once and runs in-process, and Qdrant is a local container. The eval never leaves the machine either. <strong>The answer step is the exception</strong>: the retrieved chunks and the question are sent to the Anthropic API so Claude can write the cited answer. The API key lives server-side in <span class="mono">.env</span> and is never shipped to a browser.</p>
+    </div>
+  </section>
+
+  <!-- ================= 09 NEXT ================= -->
+  <section id="next">
+    <h2 class="sh"><span class="n">09</span> Sharp edges and what comes next</h2>
+    <p class="sub">Known limits are documented in docs/PITFALLS.md as they are found. The roadmap items below are each backed by a measured need, not a vibe.</p>
+
+    <div class="teach violet">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Known limits, today</div>
+      <ul>
+        <li><strong>Refusal of unanswerable questions rests on the answer model, not the threshold</strong> (section 05), and that layer is spot-checked, not yet eval-scored.</li>
+        <li><strong>Line-window chunking can split a long function mid-body.</strong> Deliberate baseline; the symbol-aware upgrade must prove itself against the 61% number.</li>
+        <li><strong>.gitignore support is intentionally partial</strong> (simple patterns from the repo's top-level file only; no negation, no nested .gitignore files). Binaries are excluded anyway by the extension allow-list.</li>
+        <li><strong>Re-ingesting upserts and does not delete stale chunks.</strong> Renamed or deleted files leave orphans; the clean path today is dropping the collection and rebuilding.</li>
+      </ul>
+    </div>
+
+    <div class="teach">
+      <div class="kicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="m19 5 3 7-3 7"/></svg>Next, in order of measured need</div>
+      <ul>
+        <li><strong>A semantic refusal judge:</strong> score "do these passages actually answer the question?" so refusal becomes measurable instead of threshold-guessed. The 0-of-4 number is the motivation.</li>
+        <li><strong>Tree-sitter symbol-aware chunking:</strong> chunks on function/class boundaries carrying the symbol name, measured against the line-window baseline.</li>
+        <li><strong>An MCP server</strong> (Model Context Protocol, the standard plug that lets tools like Claude Desktop query an index directly): a fourth thin front door over the same pipeline.</li>
+        <li><strong>Parked with reasons</strong> (in DECISIONS.md): hybrid keyword+vector search, re-ranking, GraphRAG, hosted embeddings. Each waits for a measured need.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p class="meta-line">peckworks-codebase-rag · Peckworks Lab · page v1.0 (2026-07-12). Every measured result on this page traces to files committed in this repository: the eval snapshots in eval/results/ (the globe's five cosines live in clipmeta-jina.json), the decision log in docs/DECISIONS.md, the gotchas in docs/PITFALLS.md, and the knobs in src/config.ts. The corpus counts (247 files, 2,588 chunks) come from the ingest run itself, logged locally.</p>
+  </footer>
+
+</div>
+<script>/* vector globe: hand-rolled 3-D of normalized vectors on the unit sphere (no libraries) */
+(function(){
+try{
+  var cv=document.getElementById('vecglobe'); if(!cv) return;
+  var info=document.getElementById('vecinfo');
+  var ctx=cv.getContext('2d');
+  var DPR=Math.min(window.devicePixelRatio||1,2);
+  var LOGW=880, LOGH=430, W=LOGW, H=LOGH;
+
+  /* points placed at their MEASURED top-chunk cosines from eval/results/clipmeta-jina.json (2026-07-10);
+     theta=acos(cos) is the true angle; the azimuth is arbitrary, chosen to spread the labels apart */
+  function place(cos,phDeg){var th=Math.acos(cos),ph=phDeg*Math.PI/180;
+    return [Math.sin(th)*Math.cos(ph), Math.sin(th)*Math.sin(ph), Math.cos(th)];}
+  var pts=[
+    {name:"the shared question axis", short:"question axis", v:[0,0,1], col:"#FF8A3D", q:true, dy:-13},
+    {name:"box-header-struct · answerable · 0.85", short:"answerable · 0.85", cos:0.85, v:place(0.85,15),  col:"#2BE0CE", dy:-9},
+    {name:"search-metadata · answerable · 0.77",   short:"answerable · 0.77", cos:0.77, v:place(0.77,105), col:"#2BE0CE", dy:-9},
+    {name:"normalize-tag · answerable · 0.61",     short:"answerable · 0.61", cos:0.61, v:place(0.61,195), col:"#2BE0CE", dy:19},
+    {name:"transcode probe · 0.69",         short:"probe · 0.69", cos:0.69, v:place(0.69,-45), col:"#FF5C82", dy:17},
+    {name:"cloud-upload probe · 0.63",      short:"probe · 0.63", cos:0.63, v:place(0.63,255), col:"#FF5C82", dy:19}
+  ];
+  var yaw=1.15, pitch=-0.42, zoom=1, sel=-1;
+  var auto=!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  function rot(v){ /* yaw about Y, then pitch about X */
+    var cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
+    var x=v[0]*cy+v[2]*sy, z=-v[0]*sy+v[2]*cy, y=v[1];
+    return [x, y*cx - z*sx, y*sx + z*cx];
+  }
+  function proj(v){ var r=rot(v), p=1.45/(1.45-r[2]*0.42), s=H*0.40*zoom;
+    return {x:W/2+r[0]*s*p, y:H/2-r[1]*s*p, z:r[2], p:p}; }
+
+  function circle3(pointsFn,n,alphaF,alphaB){ /* draw a 3-D polyline, front/back alpha split */
+    var prev=null;
+    for(var i=0;i<=n;i++){ var pr=proj(pointsFn(i/n));
+      if(prev){ ctx.strokeStyle="rgba(44,52,66,"+((pr.z+prev.z)/2>0?alphaF:alphaB)+")";
+        ctx.beginPath(); ctx.moveTo(prev.x,prev.y); ctx.lineTo(pr.x,pr.y); ctx.stroke(); }
+      prev=pr; }
+  }
+  function slerp(a,b,t){ var d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; d=Math.max(-1,Math.min(1,d));
+    var om=Math.acos(d), so=Math.sin(om)||1e-6, s1=Math.sin((1-t)*om)/so, s2=Math.sin(t*om)/so;
+    return [a[0]*s1+b[0]*s2, a[1]*s1+b[1]*s2, a[2]*s1+b[2]*s2]; }
+
+  function draw(){
+    ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H); ctx.lineWidth=1;
+    [-0.5,0,0.5].forEach(function(z0){ var r=Math.sqrt(1-z0*z0);
+      circle3(function(t){var a=t*2*Math.PI; return [r*Math.cos(a), z0, r*Math.sin(a)];},72,0.9,0.28); });
+    [0,45,90,135].forEach(function(adeg){ var a=adeg*Math.PI/180;
+      circle3(function(t){var b=t*2*Math.PI; return [Math.sin(b)*Math.cos(a), Math.cos(b), Math.sin(b)*Math.sin(a)];},72,0.55,0.18); });
+    if(sel>0){ var q=pts[0].v, p=pts[sel].v, prev=null,i;
+      ctx.lineWidth=2;
+      for(i=0;i<=24;i++){ var pr=proj(slerp(q,p,i/24));
+        if(prev){ ctx.strokeStyle="rgba(255,138,61,"+(pr.z>0?0.9:0.35)+")";
+          ctx.beginPath(); ctx.moveTo(prev.x,prev.y); ctx.lineTo(pr.x,pr.y); ctx.stroke(); } prev=pr; }
+      prev=null;
+      for(i=0;i<=16;i++){ var m=slerp(q,p,i/16), pr2=proj([m[0]*0.3,m[1]*0.3,m[2]*0.3]);
+        if(prev){ ctx.strokeStyle="rgba(245,193,61,0.9)";
+          ctx.beginPath(); ctx.moveTo(prev.x,prev.y); ctx.lineTo(pr2.x,pr2.y); ctx.stroke(); } prev=pr2; }
+      ctx.lineWidth=1;
+    }
+    var order=pts.map(function(pt,i){return {i:i, z:rot(pt.v)[2]};}).sort(function(a,b){return a.z-b.z;});
+    var o=proj([0,0,0]);
+    order.forEach(function(e){ var pt=pts[e.i], pr=proj(pt.v), behind=pr.z<0, a=behind?0.35:1;
+      ctx.globalAlpha=a;
+      ctx.strokeStyle=pt.col; ctx.lineWidth=pt.q?2.4:1.6;
+      ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(pr.x,pr.y); ctx.stroke();
+      var r=(pt.q?6:4.6)*pr.p*(e.i===sel?1.35:1);
+      ctx.fillStyle=pt.col; ctx.beginPath(); ctx.arc(pr.x,pr.y,r,0,7); ctx.fill();
+      if(pt.q||e.i===sel){ ctx.strokeStyle=pt.col; ctx.beginPath(); ctx.arc(pr.x,pr.y,r+3.5,0,7); ctx.stroke(); }
+      ctx.font='11px "IBM Plex Mono",monospace'; ctx.fillStyle=pt.q?"#FF8A3D":"#C7CEDA";
+      ctx.globalAlpha=behind?0.35:0.92;
+      var label=pt.short||pt.name, tw=ctx.measureText(label).width;
+      var lx=pr.x+10; if(lx+tw>W-6) lx=pr.x-10-tw;
+      var ly=pr.y+(pt.dy||-9); if(ly<14) ly=pr.y+17;
+      ctx.fillText(label,lx,ly);
+      ctx.globalAlpha=1; ctx.lineWidth=1;
+    });
+    ctx.fillStyle="#5F6A7B"; ctx.font='10px "IBM Plex Mono",monospace';
+    ctx.fillText("unit sphere · every vector length 1 · angles are the measured cosines · lowest top score this run: 0.61 (floor: 0.57)",12,H-10);
+  }
+
+  function frame(){ if(auto){ yaw+=0.0035; draw(); } requestAnimationFrame(frame); }
+
+  function sizes(){ var w=Math.max(300,Math.min(cv.parentElement.clientWidth-16,LOGW));
+    W=w; H=Math.round(LOGH*w/LOGW);
+    cv.style.width=W+"px"; cv.style.height=H+"px";
+    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); draw(); }
+
+  var drag=null;
+  cv.addEventListener("pointerdown",function(e){ auto=false; drag={x:e.clientX,y:e.clientY,moved:false};
+    cv.setPointerCapture(e.pointerId); cv.classList.add("grabbing"); });
+  cv.addEventListener("pointermove",function(e){ if(!drag) return;
+    var dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+    if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true;
+    yaw+=dx*0.006; pitch=Math.max(-1.35,Math.min(1.35,pitch+dy*0.006));
+    drag.x=e.clientX; drag.y=e.clientY; draw(); });
+  cv.addEventListener("pointerup",function(e){ cv.classList.remove("grabbing");
+    if(drag&&!drag.moved){ /* click: pick nearest dot */
+      var rect=cv.getBoundingClientRect(), mx=e.clientX-rect.left, my=e.clientY-rect.top, best=-1, bd=18*18;
+      pts.forEach(function(pt,i){ if(pt.q) return; var pr=proj(pt.v),
+        d=(pr.x-mx)*(pr.x-mx)+(pr.y-my)*(pr.y-my); if(d<bd){bd=d;best=i;} });
+      sel=(best===sel)?-1:best;
+      if(sel>0){ var c=pts[sel].cos, deg=Math.round(Math.acos(c)*180/Math.PI);
+        info.innerHTML='"'+pts[sel].name+'" · <b>cos = '+c.toFixed(2)+'</b> · &#952; &#8776; '+deg+'&#176; from its question · smaller angle = closer meaning'; }
+      else info.textContent="drag to spin · scroll to zoom · click a point to measure its angle to the axis";
+      draw(); }
+    drag=null; });
+  cv.addEventListener("wheel",function(e){ e.preventDefault();
+    zoom=Math.max(0.6,Math.min(2.3,zoom*(e.deltaY<0?1.09:0.92))); draw(); },{passive:false});
+  window.addEventListener("resize",sizes,{passive:true});
+
+  sizes(); frame(); window.__vg_ok=true;
+}catch(err){ window.__vg_err=String(err); }
+})();
+</script>
+<script>/* scrollspy (nav active-section highlight): lights the current section's jump link as you scroll */
+(function(){
+  var links=[].slice.call(document.querySelectorAll('.navcodes a[href^="#"]'));
+  if(!links.length)return;
+  var byId={},sections=[];
+  links.forEach(function(a){var id=a.getAttribute('href').slice(1),el=document.getElementById(id);if(el){byId[id]=a;sections.push(el);}});
+  if(!sections.length)return;
+  var TRIG=130,ticking=false;
+  function update(){
+    ticking=false;
+    var current=null;
+    for(var i=0;i<sections.length;i++){ if(sections[i].getBoundingClientRect().top<=TRIG){current=sections[i].id;} else {break;} }
+    links.forEach(function(a){a.classList.toggle('active', !!current && a===byId[current]);});
+  }
+  function onScroll(){ if(!ticking){ticking=true;requestAnimationFrame(update);} }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll,{passive:true});
+  update();
+})();
+</script>
+</body>
+</html>

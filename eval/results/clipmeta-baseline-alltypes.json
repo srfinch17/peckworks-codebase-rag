@@ -1,0 +1,238 @@
+{
+  "repo": "clipmeta",
+  "topK": 8,
+  "minScore": 0.25,
+  "timestamp": "2026-07-09T22:44:40.612Z",
+  "summary": {
+    "answerable": 18,
+    "refuse": 4,
+    "hits": 2,
+    "hitRate": 0.1111111111111111,
+    "mrr": 0.06944444444444445,
+    "correctRefusals": 0,
+    "refusalAccuracy": 0,
+    "falseRefusals": 0
+  },
+  "results": [
+    {
+      "id": "big-endian-writer",
+      "question": "How does clipmeta write big-endian integers to an MP4 file?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.6664269,
+      "falseRefusal": false
+    },
+    {
+      "id": "box-tree-parse",
+      "question": "Where is the MP4 box/atom hierarchy parsed into a tree?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.6692749,
+      "falseRefusal": false
+    },
+    {
+      "id": "box-header-struct",
+      "question": "What struct represents a parsed MP4 box header (size, type, header length)?",
+      "kind": "answerable",
+      "pass": true,
+      "rank": 1,
+      "reciprocalRank": 1,
+      "topScore": 0.75252044,
+      "falseRefusal": false
+    },
+    {
+      "id": "read-metadata-fields",
+      "question": "How does clipmeta read its metadata fields out of a parsed box tree?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.70202976,
+      "falseRefusal": false
+    },
+    {
+      "id": "search-metadata",
+      "question": "How does clipmeta search indexed metadata for a field and value match?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.6902582,
+      "falseRefusal": false
+    },
+    {
+      "id": "field-stats",
+      "question": "Where does clipmeta compute stats on which metadata fields are set, unset, or custom?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.61660725,
+      "falseRefusal": false
+    },
+    {
+      "id": "safe-write",
+      "question": "How does clipmeta safely write tag metadata changes into an MP4 file?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.8190483,
+      "falseRefusal": false
+    },
+    {
+      "id": "metadata-mutation",
+      "question": "What class describes the set of metadata changes to apply to a clip?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.6109875,
+      "falseRefusal": false
+    },
+    {
+      "id": "freeform-atom-write",
+      "question": "How does clipmeta write a freeform ---- atom with mean, name, and data children?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.62370956,
+      "falseRefusal": false
+    },
+    {
+      "id": "normalize-tag",
+      "question": "Where does clipmeta normalize and lowercase a tag value before writing it?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.5752749,
+      "falseRefusal": false
+    },
+    {
+      "id": "review-watcher",
+      "question": "What drives the background watching that tracks which media-player window is active?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.5011147,
+      "falseRefusal": false
+    },
+    {
+      "id": "tag-queue",
+      "question": "Where does clipmeta persist deferred tags for clips that are locked while playing?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.66522884,
+      "falseRefusal": false
+    },
+    {
+      "id": "drain-journal",
+      "question": "How does clipmeta report tags that the background pump auto-flushed from the queue?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.71145654,
+      "falseRefusal": false
+    },
+    {
+      "id": "player-title-parse",
+      "question": "How does clipmeta extract an .mp4 reference from a media player's window title?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.69699323,
+      "falseRefusal": false
+    },
+    {
+      "id": "library-title-match",
+      "question": "How does clipmeta match a player window title against known library filenames?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.719334,
+      "falseRefusal": false
+    },
+    {
+      "id": "mcp-write-tool",
+      "question": "Which MCP tool lets the model write metadata fields into a clip, and where is it defined?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.62316126,
+      "falseRefusal": false
+    },
+    {
+      "id": "cli-export",
+      "question": "Where does the clipmeta CLI export metadata records to JSON or CSV?",
+      "kind": "answerable",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.70907485,
+      "falseRefusal": false
+    },
+    {
+      "id": "version-report",
+      "question": "Where does clipmeta report its product version consistently across all binaries?",
+      "kind": "answerable",
+      "pass": true,
+      "rank": 4,
+      "reciprocalRank": 0.25,
+      "topScore": 0.65745795,
+      "falseRefusal": false
+    },
+    {
+      "id": "transcode-refuse",
+      "question": "How do I use clipmeta to transcode or re-encode an MP4 into a different codec or resolution?",
+      "kind": "refuse",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.6220861,
+      "falseRefusal": false
+    },
+    {
+      "id": "cloud-upload-refuse",
+      "question": "Where does clipmeta upload tagged clips to the cloud or an S3 bucket?",
+      "kind": "refuse",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.56145746,
+      "falseRefusal": false
+    },
+    {
+      "id": "waveform-refuse",
+      "question": "How does clipmeta render an audio waveform or generate a thumbnail preview of a clip?",
+      "kind": "refuse",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.5651125,
+      "falseRefusal": false
+    },
+    {
+      "id": "sql-database-refuse",
+      "question": "Does clipmeta store its metadata in a SQLite or SQL database?",
+      "kind": "refuse",
+      "pass": false,
+      "rank": null,
+      "reciprocalRank": 0,
+      "topScore": 0.6445267,
+      "falseRefusal": false
+    }
+  ]
+}

@@ -108,10 +108,10 @@ and the answer we chose.
   real answers (a "false refusal"). Reading the per-question scores, 0.57 is the one point that
   catches the two weakest false-premise questions for a single false refusal; below it nothing is
   caught, and above it real answers are lost faster than fakes (a 0.65 floor would refuse all 4
-  but wrongly reject 7 of 18 answerable questions). Re-running the eval confirmed the move:
+  but wrongly reject 6 of 18 answerable questions). Re-running the eval confirmed the move:
   refusals 0/4 -> 2/4, hit-rate unchanged at 11.1% (the floor affects only the answer/refuse
   decision, not what is retrieved), with one answerable question now wrongly refused.
-  *Considered & rejected:* a 0.65 floor to force 4/4 refusals, rejected for the 7 false refusals
+  *Considered & rejected:* a 0.65 floor to force 4/4 refusals, rejected for the 6 false refusals
   it costs; leaving 0.25, rejected because it refuses nothing.
 
 - **The overlap is the finding: a threshold cannot fix what the embedding model cannot separate.**

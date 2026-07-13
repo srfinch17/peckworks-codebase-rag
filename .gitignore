@@ -8,8 +8,8 @@ logs/*.jsonl
 .qdrant_storage/
 # Web UI per-repo settings (local state)
 data/
-# Eval scoreboard snapshots (local run output)
-eval/results/
+# Eval "latest run" pointer (overwritten every run); named snapshots are tracked
+eval/results/*-latest.json
 # Local-only working docs, kept off the published repo
 CLAUDE.md
 docs/superpowers/

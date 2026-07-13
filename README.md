@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/srfinch17/peckworks-codebase-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/srfinch17/peckworks-codebase-rag/actions/workflows/ci.yml)
 
+**The guided tour:** [srfinch17.github.io/peckworks-codebase-rag](https://srfinch17.github.io/peckworks-codebase-rag/) -
+the pipeline, the measured 11% -> 61% retrieval run, the design decisions, and the known limits,
+with an interactive view of the vector space.
+
 Ask natural-language questions about a codebase and get grounded, cited answers, or an honest
 "I don't know" when the code doesn't contain the answer. Point it at a repository; it indexes the
 source and docs into a searchable vector store, and every answer comes back with `path:line`
@@ -64,7 +68,10 @@ retrieval and checks whether the expected file comes back, producing three numbe
 - **MRR** (mean reciprocal rank) - how highly the expected file ranked, rewarding a result at
   position 1 over one buried at position 8.
 - **refusal-accuracy** - the share of should-refuse questions that correctly fall below the
-  `minScore` floor.
+  `minScore` floor. At the shipped floor (0.57) this is 0 of 4: the answerable and should-refuse
+  score ranges overlap, so no threshold separates them, and refusal in practice rests on the
+  answer step's only-from-context rule (see `docs/DECISIONS.md`, 2026-07-10). Making that layer
+  measurable is the roadmap's semantic-judge item.
 
 The eval never calls the model: both "did the right file come back" and "did it correctly refuse"
 come from retrieval output and the `minScore` threshold, so a run is free, offline, and
